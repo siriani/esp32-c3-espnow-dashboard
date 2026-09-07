@@ -27,8 +27,8 @@ enum EnowType : uint8_t
 enum EnowMqttCat : uint8_t
 {
     MQ_MESH = 0,  // meshtastic/rx
-    MQ_ALERT = 1, // esp32ticker/alerta, home/*, ...
-    MQ_PRINT = 2, // impressora/status
+    MQ_ALERT = 1, // esp32ticker/alert, home/*, ...
+    MQ_PRINT = 2, // printer/status
     MQ_OTHER = 3,
 };
 

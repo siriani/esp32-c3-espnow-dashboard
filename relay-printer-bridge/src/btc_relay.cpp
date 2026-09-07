@@ -30,7 +30,7 @@
 #include "btc_relay.h"
 #include "enow_proto.h"
 
-// ---- defaults (sobrescrever em include/config.h) ----
+// ---- defaults (override in include/config.h) ----
 #ifndef BTC_WIFI_SSID
 #define BTC_WIFI_SSID "YOUR_WIFI_SSID"
 #endif
@@ -79,28 +79,28 @@
 
 static const char *MQTT_TOPICS[] = {
     "meshtastic/rx",
-    "esp32ticker/alerta",
-    "impressora/status",
+    "esp32ticker/alert",
+    "printer/status",
     "home/front_door/state",
 };
 static const int MQTT_TOPIC_COUNT = sizeof(MQTT_TOPICS) / sizeof(MQTT_TOPICS[0]);
 static const char *MQTT_CLIENT_ID = "esp32-btc-relay";
 static const char *MQTT_STATUS_TOPIC = "esp32ticker/relay/status";
-static const char *PRINTER_STATUS_TOPIC = "impressora/status";
+static const char *PRINTER_STATUS_TOPIC = "printer/status";
 
-// status da impressora: escrito pelo core 1 (loop), publicado pelo core 0.
+// printer status: written by core 1 (loop), published by core 0.
 static volatile bool g_prnDirty = false;
-static char g_prnEstado[48] = "iniciando";
+static char g_prnState[48] = "starting";
 
-void btcRelayPublishPrinter(const char *estado)
+void btcRelayPublishPrinter(const char *state)
 {
-    if (!estado)
+    if (!state)
         return;
-    // so marca se mudou
-    if (strncmp(g_prnEstado, estado, sizeof(g_prnEstado)) == 0)
+    // only flag it if it changed
+    if (strncmp(g_prnState, state, sizeof(g_prnState)) == 0)
         return;
-    strncpy(g_prnEstado, estado, sizeof(g_prnEstado) - 1);
-    g_prnEstado[sizeof(g_prnEstado) - 1] = 0;
+    strncpy(g_prnState, state, sizeof(g_prnState) - 1);
+    g_prnState[sizeof(g_prnState) - 1] = 0;
     g_prnDirty = true;
 }
 
@@ -119,8 +119,8 @@ static uint32_t g_seq = 0;
 static WiFiClient mqttNet;
 static PubSubClient mqtt(mqttNet);
 
-// forca DNS publico (o DNS do DHCP da rede homelab as vezes nao resolve
-// nomes externos). Nao mexe no IP/DHCP -- so troca os servidores DNS.
+// force a public DNS (the homelab DHCP DNS sometimes fails to resolve
+// external names). Leaves the IP/DHCP alone -- only swaps the DNS servers.
 static void forceDns()
 {
     ip_addr_t d;
@@ -146,8 +146,8 @@ static bool httpGetJsonOnce(const char *url, JsonDocument &doc)
     bool ok = false;
     if (code == HTTP_CODE_OK)
     {
-        // getString() de-chunka a resposta; deserializeJson(stream) as vezes
-        // recebe o encoding chunked cru e retorna InvalidInput.
+        // getString() de-chunks the response; deserializeJson(stream) sometimes
+        // gets the raw chunked encoding and returns InvalidInput.
         String body = h.getString();
         DeserializationError e = deserializeJson(doc, body);
         if (!e)
@@ -156,7 +156,7 @@ static bool httpGetJsonOnce(const char *url, JsonDocument &doc)
             RLOG("JSON err: %s (%.60s)\n", e.c_str(), body.c_str());
     }
     else
-        RLOG("HTTP %d em %.40s\n", code, url);
+        RLOG("HTTP %d at %.40s\n", code, url);
     h.end();
     return ok;
 }
@@ -168,13 +168,13 @@ static bool httpGetJson(const char *url, JsonDocument &doc, size_t reserve)
     {
         if (httpGetJsonOnce(url, doc))
             return true;
-        forceDns(); // 1a falha as vezes e DNS ainda subindo
+        forceDns(); // the 1st failure is sometimes just DNS still coming up
         vTaskDelay(pdMS_TO_TICKS(1200));
     }
     return false;
 }
 
-// -------------------------- fetch preco --------------------------------
+// -------------------------- fetch price -------------------------------
 static bool sendPrices()
 {
     JsonDocument doc;
@@ -184,12 +184,12 @@ static bool sendPrices()
     enow_prices_t m = {};
     m.magic = ENOW_MAGIC;
     m.type = ENOW_PRICES;
-    m.relay_ch = (uint8_t)WiFi.channel(); // o C3 segue este canal
-    IPAddress lip = WiFi.localIP();        // o C3 mostra este IP na tela Impressao
+    m.relay_ch = (uint8_t)WiFi.channel(); // the C3 follows this channel
+    IPAddress lip = WiFi.localIP();        // the C3 shows this IP on the Printer screen
     for (int i = 0; i < 4; i++) m.relay_ip[i] = lip[i];
     m.seq = ++g_seq;
     time_t tnow = time(nullptr);
-    m.epoch = (tnow > 1700000000) ? (uint32_t)tnow : 0; // 0 = NTP ainda nao subiu
+    m.epoch = (tnow > 1700000000) ? (uint32_t)tnow : 0; // 0 = NTP hasn't synced yet
     m.btc_usd = doc["bitcoin"]["usd"] | 0.0f;
     m.btc_brl = doc["bitcoin"]["brl"] | 0.0f;
     m.btc_chg = doc["bitcoin"]["usd_24h_change"] | 0.0f;
@@ -198,7 +198,7 @@ static bool sendPrices()
     m.eth_chg = doc["ethereum"]["usd_24h_change"] | 0.0f;
     m.usdt_usd = doc["tether"]["usd"] | 0.0f;
     m.usdt_brl = doc["tether"]["brl"] | 0.0f;
-    m.usdt_chg = doc["tether"]["brl_24h_change"] | 0.0f; // variacao do cambio
+    m.usdt_chg = doc["tether"]["brl_24h_change"] | 0.0f; // exchange-rate change
 
     if (m.btc_usd <= 0)
         return false;
@@ -208,7 +208,7 @@ static bool sendPrices()
     return e == ESP_OK;
 }
 
-// -------------------------- fetch clima --------------------------------
+// -------------------------- fetch weather -----------------------------
 static bool sendWeather()
 {
     JsonDocument doc;
@@ -248,7 +248,7 @@ static String b64decode(const char *in)
     if (!in || !*in)
         return String();
     size_t inLen = strlen(in), outLen = 0;
-    // 1a chamada so pra medir
+    // 1st call just to size the output
     mbedtls_base64_decode(nullptr, 0, &outLen, (const unsigned char *)in, inLen);
     if (outLen == 0 || outLen > 220)
         return String();
@@ -262,50 +262,50 @@ static String b64decode(const char *in)
 static String nodeTag(uint32_t id)
 {
     if (id == 0xFFFFFFFFUL || id == 0)
-        return "todos";
+        return "all";
     char b[12];
     snprintf(b, sizeof(b), "!%08x", (unsigned)id);
     return String(b);
 }
 
-// Retorna "" se a mensagem deve ser IGNORADA (telemetria, admin, etc).
+// Returns "" if the message should be IGNORED (telemetry, admin, etc).
 static String meshtasticToLines(const String &body)
 {
-    // formato limpo da automacao:  de|para|mensagem
+    // clean format from the HA automation:  from|to|message
     int p1 = body.indexOf('|');
     int p2 = p1 >= 0 ? body.indexOf('|', p1 + 1) : -1;
     if (!body.startsWith("{") && p1 > 0 && p2 > p1)
-        return "De: " + body.substring(0, p1) + "\nPara: " + body.substring(p1 + 1, p2) +
+        return "From: " + body.substring(0, p1) + "\nTo: " + body.substring(p1 + 1, p2) +
                "\n" + body.substring(p2 + 1);
 
-    // JSON cru do evento HA: filtra TEXT_MESSAGE_APP e decodifica o base64
+    // raw HA event JSON: filter TEXT_MESSAGE_APP and decode the base64
     if (body.startsWith("{"))
     {
         JsonDocument d;
         if (deserializeJson(d, body))
-            return ""; // JSON invalido -> ignora
+            return ""; // invalid JSON -> ignore
         JsonObject data = d["data"];
         const char *portnum = data["decoded"]["portnum"] | "";
         if (strcmp(portnum, "TEXT_MESSAGE_APP") != 0)
-            return ""; // telemetria/admin/routing -> ignora
+            return ""; // telemetry/admin/routing -> ignore
         String text = b64decode(data["decoded"]["payload"] | "");
         if (text.length() == 0)
             return "";
         uint32_t from = data["from"] | 0UL;
         uint32_t to = data["to"] | 0UL;
-        return "De: " + nodeTag(from) + "\nPara: " + nodeTag(to) + "\n" + text;
+        return "From: " + nodeTag(from) + "\nTo: " + nodeTag(to) + "\n" + text;
     }
 
-    return body; // texto puro em outro topico
+    return body; // plain text on another topic
 }
 
 static uint8_t catForTopic(const char *topic)
 {
     if (strcmp(topic, "meshtastic/rx") == 0)
         return MQ_MESH;
-    if (strcmp(topic, "impressora/status") == 0)
+    if (strcmp(topic, "printer/status") == 0)
         return MQ_PRINT;
-    if (strcmp(topic, "esp32ticker/alerta") == 0 || strncmp(topic, "casa/", 5) == 0)
+    if (strcmp(topic, "esp32ticker/alert") == 0 || strncmp(topic, "home/", 5) == 0)
         return MQ_ALERT;
     return MQ_OTHER;
 }
@@ -320,13 +320,13 @@ static void onMqtt(char *topic, byte *payload, unsigned int len)
     {
         out = meshtasticToLines(body);
         if (out.length() == 0)
-            return; // ignorado (nao era mensagem de texto)
+            return; // ignored (not a text message)
     }
     else if (cat == MQ_PRINT && body.startsWith("{"))
     {
-        // {"estado":"pronta",...} -> "pronta"
-        int i = body.indexOf("\"estado\"");
-        int q1 = i >= 0 ? body.indexOf('"', i + 8) : -1;
+        // {"state":"ready",...} -> "ready"
+        int i = body.indexOf("\"state\"");
+        int q1 = i >= 0 ? body.indexOf('"', i + 7) : -1;
         int q2 = q1 >= 0 ? body.indexOf('"', q1 + 1) : -1;
         out = (q1 >= 0 && q2 > q1) ? body.substring(q1 + 1, q2) : body;
     }
@@ -350,7 +350,7 @@ static void mqttReconnect()
 {
     static uint32_t last = 0;
     static int lastRc = 99;
-    if (mqtt.connected() || millis() - last < 20000) // retry espacado
+    if (mqtt.connected() || millis() - last < 20000) // spaced-out retry
         return;
     last = millis();
     if (mqtt.connect(MQTT_CLIENT_ID, BTC_MQTT_USER, BTC_MQTT_PASS,
@@ -359,14 +359,14 @@ static void mqttReconnect()
         mqtt.publish(MQTT_STATUS_TOPIC, "online", true);
         for (int i = 0; i < MQTT_TOPIC_COUNT; i++)
             mqtt.subscribe(MQTT_TOPICS[i]);
-        RLOG("MQTT conectado\n");
+        RLOG("MQTT connected\n");
         lastRc = 0;
     }
     else
     {
         int rc = mqtt.state();
-        if (rc != lastRc) // loga so quando muda
-            RLOG("MQTT sem conexao rc=%d (5=senha; ajuste BTC_MQTT_* no config.h)\n", rc);
+        if (rc != lastRc) // log only when it changes
+            RLOG("MQTT not connected rc=%d (5=bad password; set BTC_MQTT_* in config.h)\n", rc);
         lastRc = rc;
     }
 }
@@ -379,11 +379,11 @@ static void publishPrinterStatusIfDue()
     if (!g_prnDirty && (int32_t)(millis() - nextBeat) < 0)
         return;
     g_prnDirty = false;
-    nextBeat = millis() + 60000; // republica de tempos em tempos (mantem o "ha Xs")
+    nextBeat = millis() + 60000; // republish periodically (keeps the "Xs ago" fresh)
     char j[96];
-    snprintf(j, sizeof(j), "{\"estado\":\"%s\",\"ts\":%ld}", g_prnEstado, (long)time(nullptr));
-    mqtt.publish(PRINTER_STATUS_TOPIC, j, true); // retido
-    RLOG("impressora/status -> %s\n", g_prnEstado);
+    snprintf(j, sizeof(j), "{\"state\":\"%s\",\"ts\":%ld}", g_prnState, (long)time(nullptr));
+    mqtt.publish(PRINTER_STATUS_TOPIC, j, true); // retained
+    RLOG("printer/status -> %s\n", g_prnState);
 }
 
 // -------------------------- task ------------------------------------
@@ -391,7 +391,7 @@ static void relayTask(void *)
 {
     WiFi.persistent(false);
     WiFi.setSleep(false);
-    // se o web_print (ou outro modulo) ja associou, nao reinicia a conexao
+    // if web_print (or another module) already associated, don't restart the connection
     if (WiFi.status() != WL_CONNECTED)
     {
         WiFi.mode(WIFI_STA);
@@ -399,29 +399,29 @@ static void relayTask(void *)
         RLOG("WiFi \"%s\" ...\n", BTC_WIFI_SSID);
     }
     else
-        RLOG("WiFi ja associado (IP=%s)\n", WiFi.localIP().toString().c_str());
+        RLOG("WiFi already associated (IP=%s)\n", WiFi.localIP().toString().c_str());
     uint32_t t0 = millis();
     while (WiFi.status() != WL_CONNECTED && millis() - t0 < 30000)
         vTaskDelay(pdMS_TO_TICKS(250));
     if (WiFi.status() == WL_CONNECTED)
     {
         forceDns();
-        configTime(0, 0, "pool.ntp.org", "time.nist.gov", "a.st1.ntp.br"); // epoch UTC
-        RLOG("WiFi OK IP=%s canal=%d dns=1.1.1.1 (NTP a sincronizar)\n",
+        configTime(0, 0, "pool.ntp.org", "time.nist.gov", "a.st1.ntp.br"); // UTC epoch
+        RLOG("WiFi OK IP=%s channel=%d dns=1.1.1.1 (NTP syncing)\n",
              WiFi.localIP().toString().c_str(), WiFi.channel());
     }
     else
-        RLOG("WiFi sem conexao (retenta em bg)\n");
+        RLOG("WiFi not connected (retrying in bg)\n");
 
     if (esp_now_init() != ESP_OK)
     {
-        RLOG("esp_now_init FALHOU\n");
+        RLOG("esp_now_init FAILED\n");
         vTaskDelete(NULL);
         return;
     }
     esp_now_peer_info_t peer = {};
     memcpy(peer.peer_addr, BCAST, 6);
-    peer.channel = 0; // canal atual do STA
+    peer.channel = 0; // current STA channel
     peer.encrypt = false;
     esp_now_add_peer(&peer);
 

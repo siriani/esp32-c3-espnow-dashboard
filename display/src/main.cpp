@@ -40,12 +40,12 @@
 #  define HAS_SPRITES 1
 #endif
 
-// canal ESP-NOW = canal do roteador que o relay usa. Se nao chegar nada,
-// varre esta lista ate achar. (Hoje o relay ficou no ch 6.)
+// ESP-NOW channel = the router channel the relay uses. If nothing arrives,
+// sweep this list until it's found. (The relay last sat on ch 6.)
 static const uint8_t BTC_CHANNELS[] = {6, 10, 1, 11};
 static const uint32_t SWEEP_MS = 4000;
-static const uint32_t LINK_STALE_MS = 150000;   // relay "sumiu" (2.5 min sem preco)
-static const uint32_t WEATHER_STALE_MS = 2400000; // clima velho (40 min)
+static const uint32_t LINK_STALE_MS = 150000;   // relay "gone" (2.5 min with no price)
+static const uint32_t WEATHER_STALE_MS = 2400000; // weather stale (40 min)
 static const uint32_t ALERT_DISPLAY_MS = 8000;
 static const uint32_t FRAME_MS = 66;            // ~15 fps
 static const uint32_t TWEEN_MS = 700;
@@ -62,7 +62,7 @@ static const uint32_t TWEEN_MS = 700;
 #define BTN_NEXT_PIN 10  // K2
 static const uint32_t BTN_DEBOUNCE_MS = 220;
 
-// cores RGB565
+// RGB565 colors
 #define C_BLACK ST77XX_BLACK
 #define C_WHITE ST77XX_WHITE
 #define C_RED 0xF800
@@ -80,7 +80,7 @@ SPIClass spiTFT(FSPI);
 static Adafruit_ST7735 tft = Adafruit_ST7735(&spiTFT, PIN_TFT_CS, PIN_TFT_DC, PIN_TFT_RST);
 static GFXcanvas16 cv(128, 128);
 
-// ------------------------------- estado -----------------------------------
+// ------------------------------- state -----------------------------------
 #define HISTORY_LEN 40
 #define WEATHER_HOURLY_LEN 24
 
@@ -105,11 +105,11 @@ static volatile bool havePrices = false;
 static volatile uint32_t lastPriceRx = 0;
 static uint32_t pricesSeq = 0;
 
-// relogio: o relay manda o epoch UTC (NTP) no pacote de preco; entre
-// pacotes o C3 conta com millis(). Brasil = UTC-3, sem horario de verao.
+// clock: the relay sends the UTC epoch (NTP) in the price packet; between
+// packets the C3 keeps time with millis(). Brazil = UTC-3, no DST.
 #define TZ_OFFSET_S (-3 * 3600)
-static volatile uint32_t epochBase = 0;   // epoch UTC do ultimo pacote
-static volatile uint32_t epochBaseMs = 0; // millis() quando recebeu
+static volatile uint32_t epochBase = 0;   // UTC epoch of the last packet
+static volatile uint32_t epochBaseMs = 0; // millis() when it was received
 static volatile bool haveTime = false;
 
 static volatile double wxTemp = 0, wxFeels = 0, wxHum = 0, wxWind = 0, wxMin = 0, wxMax = 0;
@@ -121,7 +121,7 @@ static int wxHourlyCount = 0;
 static String wxTicker = "  weather loading...  ";
 static int wxTickerX = 128, wxTickerW = 0;
 
-// MQTT: um anel por categoria (mesh / alerta / impressao / outros) + banner
+// MQTT: one ring per category (mesh / alert / print / other) + banner
 #define MQTT_LOG_LEN 6
 #define MQ_CATS 4
 struct MqttMsg { String topic, payload; uint32_t at; };
@@ -130,26 +130,26 @@ static int mqHead[MQ_CATS] = {0}, mqCount[MQ_CATS] = {0};
 static uint32_t mqTotal[MQ_CATS] = {0}, mqLastAt[MQ_CATS] = {0};
 static uint32_t lastAlertAt = 0;
 static uint8_t lastAlertCat = MQ_ALERT;
-static uint32_t mqttRxCount = 0; // total geral (todas as categorias)
+static uint32_t mqttRxCount = 0; // grand total (all categories)
 
 // ESP-NOW / link
 static uint32_t enowRx = 0;
-static uint8_t chIdx = 0;           // indice na varredura BTC_CHANNELS
-static uint8_t curCh = BTC_CHANNELS[0]; // canal que o radio esta escutando
-static uint8_t relayCh = 0;         // canal carimbado pelo relay no ultimo preco
-static volatile uint8_t relayIp[4] = {0, 0, 0, 0}; // IP do relay no roteador (form de impressao)
+static uint8_t chIdx = 0;           // index into the BTC_CHANNELS sweep
+static uint8_t curCh = BTC_CHANNELS[0]; // channel the radio is listening on
+static uint8_t relayCh = 0;         // channel stamped by the relay in the last price
+static volatile uint8_t relayIp[4] = {0, 0, 0, 0}; // relay's LAN IP (print form)
 static bool chLocked = false;
 static uint32_t lastSweep = 0;
 
-// animacao
+// animation
 static float animPhase = 0;
 static uint32_t lastFrame = 0;
 
-// botoes
+// buttons
 static int prevBtnLast = HIGH, nextBtnLast = HIGH;
 static uint32_t lastBtnAt = 0;
 
-enum Screen { SCR_BTC = 0, SCR_ETH, SCR_USDBRL, SCR_CLIMA, SCR_RELOGIO,
+enum Screen { SCR_BTC = 0, SCR_ETH, SCR_USDBRL, SCR_WEATHER, SCR_CLOCK,
               SCR_MESH, SCR_ALERT, SCR_PRINT, SCR_INFO, SCR_COUNT };
 static const char *SCR_NAMES[SCR_COUNT] =
     {"BTC", "ETH", "USD/BRL", "Weather", "Clock", "Meshtastic", "Alerts", "Printer", "Info"};
@@ -181,17 +181,17 @@ static void applyCoin(CoinState &c, double usd, double brl, double chg, bool fir
     else { c.tweenFrom = c.displayed; c.tweenTo = v; c.tweenStart = millis(); c.tweening = true; }
 }
 
-// Se o payload for um objeto JSON, extrai algo legivel (o valor de uma
-// chave conhecida, ou "k: v  k: v" sem chaves/aspas). Se nao for JSON,
-// devolve como veio. Salvaguarda pra qualquer topico MQTT.
+// If the payload is a JSON object, extract something readable (the value of
+// a known key, or "k: v  k: v" without braces/quotes). If it's not JSON,
+// return it unchanged. A safety net for any MQTT topic.
 static String prettyMqtt(String s)
 {
     s.trim();
     if (!s.startsWith("{") || !s.endsWith("}"))
         return s;
 
-    static const char *KEYS[] = {"estado", "text", "message", "msg",
-                                 "state", "status", "value", "payload", "texto"};
+    static const char *KEYS[] = {"text", "message", "msg",
+                                 "state", "status", "value", "payload"};
     for (auto k : KEYS)
     {
         String pat = String("\"") + k + "\"";
@@ -218,7 +218,7 @@ static String prettyMqtt(String s)
             return s.substring(j, e);
         }
     }
-    // sem chave conhecida: limpa a pontuacao do JSON
+    // no known key: strip the JSON punctuation
     String out;
     for (uint16_t n = 0; n < s.length(); n++)
     {
@@ -256,8 +256,8 @@ static void onRecv(const uint8_t *mac, const uint8_t *data, int len)
         lastPriceRx = millis();
         pricesSeq = m.seq;
         if (m.epoch > 1700000000UL) { epochBase = m.epoch; epochBaseMs = millis(); haveTime = true; }
-        chLocked = true; // so o heartbeat de preco (60s) trava o canal
-        // segue o canal WiFi do relay (the router hops channels on its own)
+        chLocked = true; // only the price heartbeat (60s) locks the channel
+        // follow the relay's WiFi channel (the router hops channels on its own)
         if (m.relay_ch >= 1 && m.relay_ch <= 13)
         {
             relayCh = m.relay_ch;
@@ -304,7 +304,7 @@ static void onRecv(const uint8_t *mac, const uint8_t *data, int len)
     }
 }
 
-// --------------------------- texto / util -------------------------------
+// --------------------------- text / util -------------------------------
 static void txt(int x, int y, uint8_t size, uint16_t color, const String &s)
 {
     cv.setTextSize(size);
@@ -326,8 +326,8 @@ static void centered(const String &s, int y, uint8_t size, uint16_t color)
     txt((128 - textW(s, size)) / 2, y, size, color, s);
 }
 
-// escreve 'text' quebrando em '\n' e depois por comprimento (cpl chars/linha),
-// no maximo 'maxLines'. Retorna quantas linhas desenhou.
+// draws 'text', breaking on '\n' and then by length (cpl chars/line),
+// up to 'maxLines'. Returns how many lines it drew.
 static int drawWrapped(int x, int y, int cpl, int maxLines, uint16_t color, const String &text)
 {
     int drawn = 0, start = 0;
@@ -364,7 +364,7 @@ static String fmtBrlRate(double v)
     String s(b); s.replace('.', ','); return s;
 }
 
-// --------------------------- graficos ----------------------------------
+// --------------------------- graphics ----------------------------------
 static void drawSparkline(int x, int y, int w, int h, float *hist, int n, int cap, float minRange)
 {
     cv.drawRect(x, y, w, h, C_LIGHTGREY);
@@ -392,7 +392,7 @@ static void drawArrow(int x, int y, bool up, uint16_t color)
     else    cv.fillTriangle(x, y, x + 10, y, x + 5, y + 9, color);
 }
 
-// escala o brilho de uma cor RGB565 (0..1)
+// scale the brightness of an RGB565 color (0..1)
 static uint16_t sc565(uint16_t c, float b)
 {
     b = constrain(b, 0.0f, 1.0f);
@@ -402,13 +402,13 @@ static uint16_t sc565(uint16_t c, float b)
     return (uint16_t)((r << 11) | (g << 5) | bl);
 }
 
-// ------------------------- tema Snoopy / Peanuts ----------------------
-#define C_PNUT_RED 0xC060   // vermelho da casinha
-#define C_PNUT_CREAM 0xFF9C // creme do balao de fala
+// ------------------------- Snoopy / Peanuts theme --------------------
+#define C_PNUT_RED 0xC060   // doghouse red
+#define C_PNUT_CREAM 0xFF9C // speech-bubble cream
 
-// Sprites opcionais gerados por tools/img2sprite.py (com imagem que voce
-// tem direito de usar). Se os headers existirem, sao usados no lugar do
-// desenho geometrico. `snoopy` = grande (casinha/splash), `snoopyMini` = titulo.
+// Optional sprites generated by tools/img2sprite.py (from an image you have
+// the rights to use). If the headers exist, they replace the geometric
+// drawing. `snoopy` = large (doghouse/splash), `snoopyMini` = title bar.
 #if defined(__has_include)
 #  if __has_include("snoopy.h")
 #    include "snoopy.h"
@@ -420,16 +420,16 @@ static uint16_t sc565(uint16_t c, float b)
 #  endif
 #endif
 
-// blita um sprite RGB565 opaco (os headers de src/sprites/ nao tem
-// mascara -- sao retangulos cheios), centralizado no eixo x. O
-// drawRGBBitmap do GFXcanvas16 corta sozinho o que passa da borda.
+// blit an opaque RGB565 sprite (the src/sprites/ headers have no mask --
+// they're full rectangles), centered on the x axis. GFXcanvas16's
+// drawRGBBitmap clips whatever runs past the edge on its own.
 static void blitSpriteCx(int y, const uint16_t *data, int w, int h)
 {
     cv.drawRGBBitmap((128 - w) / 2, y, data, w, h);
 }
 
-// Snoopy de perfil (olhando pra direita), preto sobre fundo CLARO.
-// ~18x14 na escala 1. Feito pra ficar dentro do balao branco do titulo.
+// Snoopy in profile (facing right), black on a LIGHT background.
+// ~18x14 at scale 1. Made to sit inside the white title bubble.
 static void drawMiniSnoopy(int x, int y)
 {
 #ifdef HAS_SNOOPY_MINI
@@ -437,21 +437,21 @@ static void drawMiniSnoopy(int x, int y)
                      snoopyMini_W, snoopyMini_H);
     return;
 #endif
-    // cabeca
+    // head
     cv.fillCircle(x + 6, y + 6, 6, C_BLACK);
     cv.fillCircle(x + 6, y + 6, 4, C_WHITE);
-    // focinho
+    // muzzle
     cv.fillRoundRect(x + 9, y + 5, 8, 6, 2, C_BLACK);
     cv.fillRoundRect(x + 9, y + 6, 6, 4, 2, C_WHITE);
-    // nariz
+    // nose
     cv.fillCircle(x + 16, y + 8, 2, C_BLACK);
-    // orelha caida
+    // floppy ear
     cv.fillRoundRect(x, y + 4, 5, 9, 2, C_BLACK);
-    // olho
+    // eye
     cv.fillCircle(x + 6, y + 5, 1, C_BLACK);
 }
 
-// Casinha vermelha do Snoopy.
+// Snoopy's red doghouse.
 static void drawDoghouse(int x, int y, int w, int h)
 {
     int roofH = h * 2 / 5;
@@ -459,13 +459,13 @@ static void drawDoghouse(int x, int y, int w, int h)
     cv.fillTriangle(x - 2, y + roofH + 1, x + w / 2, y, x + w + 2, y + roofH + 1, C_PNUT_RED);
     cv.drawLine(x - 2, y + roofH + 1, x + w / 2, y, C_WHITE);
     cv.drawLine(x + w / 2, y, x + w + 2, y + roofH + 1, C_WHITE);
-    // porta em arco
+    // arched door
     int dw = w / 3, dx = x + (w - dw) / 2, dy = y + h - (h - roofH) * 3 / 4;
     cv.fillRoundRect(dx, dy, dw, y + h - dy, 3, C_BLACK);
 }
 
-// Snoopy deitado de barriga pra cima no telhado (a pose classica),
-// com "Z Z Z". x,y = canto sup-esq de uma area ~72x46.
+// Snoopy lying on his back on the roof (the classic pose),
+// with "Z Z Z". x,y = top-left corner of a ~72x46 area.
 static void drawSnoopyLounging(int x, int y)
 {
 #ifdef HAS_SNOOPY_BIG
@@ -474,17 +474,17 @@ static void drawSnoopyLounging(int x, int y)
     return;
 #endif
     drawDoghouse(x + 8, y + 10, 56, 34);
-    // corpo do Snoopy deitado ao longo da cumeeira
+    // Snoopy's body lying along the ridge
     int bx = x + 12, by = y + 8;
     cv.fillRoundRect(bx, by, 40, 9, 4, C_WHITE);
     cv.drawRoundRect(bx, by, 40, 9, 4, C_LIGHTGREY);
-    // cabeca pendurada na ponta direita
+    // head hanging off the right end
     cv.fillCircle(bx + 44, by + 6, 6, C_WHITE);
     cv.drawCircle(bx + 44, by + 6, 6, C_LIGHTGREY);
-    cv.fillRoundRect(bx + 45, by + 4, 7, 5, 2, C_WHITE); // focinho
-    cv.fillCircle(bx + 51, by + 6, 1, C_BLACK);          // nariz
-    cv.fillRoundRect(bx + 44, by + 8, 4, 8, 2, C_BLACK); // orelha caindo
-    // patinhas pra cima
+    cv.fillRoundRect(bx + 45, by + 4, 7, 5, 2, C_WHITE); // muzzle
+    cv.fillCircle(bx + 51, by + 6, 1, C_BLACK);          // nose
+    cv.fillRoundRect(bx + 44, by + 8, 4, 8, 2, C_BLACK); // floppy ear
+    // paws up
     for (int i = 0; i < 4; i++)
         cv.fillRoundRect(bx + 4 + i * 9, by - 5, 4, 6, 2, C_WHITE);
     // Z Z Z
@@ -492,23 +492,23 @@ static void drawSnoopyLounging(int x, int y)
     txt(x + 8, y - 2, 2, C_YELLOW, "z");
 }
 
-// Balao de titulo estilo tirinha: retangulo branco arredondado + mini
-// Snoopy + rotulo preto. Retorna o y de baixo do balao.
+// Comic-strip style title bubble: rounded white rectangle + mini
+// Snoopy + black label. Returns the y at the bottom of the bubble.
 static int drawTitleBar(const String &label, uint16_t accent)
 {
     int w = 24 + textW(label, 1) + 8;
     if (w > 126) w = 126;
     int x = (128 - w) / 2, y = 1, h = 16;
     cv.fillRoundRect(x, y, w, h, 5, C_WHITE);
-    // borda "respira"
+    // border "breathes"
     float b = 0.55f + 0.45f * (0.5f + 0.5f * sinf(animPhase));
     cv.drawRoundRect(x, y, w, h, 5, sc565(accent, b));
     drawMiniSnoopy(x + 3, y + 1);
     txt(x + 22, y + 5, 1, C_BLACK, label);
-    return y + h + 2; // primeiro y livre
+    return y + h + 2; // first free y
 }
 
-// --------------------------- icones (geometricos) --------------------
+// --------------------------- icons (geometric) ---------------------
 typedef void (*IconFn)(int x, int y, float b);
 
 static void drawBtcIcon(int x, int y, float b)
@@ -516,7 +516,7 @@ static void drawBtcIcon(int x, int y, float b)
     uint16_t o = sc565(C_ORANGE, b), w = sc565(C_WHITE, b);
     int cx = x + 14, cy = y + 14;
     cv.fillCircle(cx, cy, 13, o);
-    // "B" estilizado + hastes verticais do simbolo ₿
+    // stylized "B" + the vertical strokes of the ₿ symbol
     cv.fillRect(cx - 5, cy - 8, 3, 16, w);
     cv.fillRect(cx - 5, cy - 8, 8, 3, w);
     cv.fillRect(cx - 5, cy - 1, 8, 3, w);
@@ -552,7 +552,7 @@ static void drawUsdIcon(int x, int y, float b)
     cv.print("$");
 }
 
-// --------------------------- icones de clima ------------------------
+// --------------------------- weather icons ------------------------
 enum WxCat { WX_CLEAR, WX_CLOUD, WX_RAIN, WX_STORM, WX_SNOW, WX_FOG };
 static WxCat wxCategory(int code)
 {
@@ -617,7 +617,7 @@ static void drawWeatherIcon(int x, int y, int code)
     }
 }
 
-// numero + "°C" (o simbolo de grau e um circulozinho na mao)
+// number + "°C" (the degree symbol is a little hand-drawn circle)
 static void printDegrees(int x, int y, double v, uint8_t size, uint16_t color)
 {
     char b[8]; snprintf(b, sizeof(b), "%.0f", v);
@@ -650,7 +650,7 @@ static void updateWxTicker()
     wxTickerW = textW(wxTicker, 1);
 }
 
-// --------------------------- telas -------------------------------------
+// --------------------------- screens -----------------------------------
 static bool linkStale() { return !havePrices || millis() - lastPriceRx > LINK_STALE_MS; }
 
 static void renderCoinScreen(CoinState &c, const char *label, IconFn icon)
@@ -700,7 +700,7 @@ static void renderWeatherScreen()
     if (haveWeather)
     {
         printDegrees(40, 26, wxTemp, 3, stale ? C_DARKGREY : C_WHITE);
-        char b[24]; snprintf(b, sizeof(b), "sensacao %.0fC", wxFeels);
+        char b[24]; snprintf(b, sizeof(b), "feels %.0fC", wxFeels);
         txt(4, 54, 1, stale ? C_DARKGREY : C_CYAN, b);
     }
     else
@@ -717,7 +717,7 @@ static void renderMsgScreen(int cat, const char *title, uint16_t titleColor, con
     drawTitleBar(title, titleColor);
     if (cat == MQ_PRINT)
     {
-        // IP do relay no roteador = onde fica o form pra imprimir texto digitado
+        // the relay's LAN IP = where the "type text to print" form lives
         char ipb[26];
         if (relayIp[0] || relayIp[1] || relayIp[2] || relayIp[3])
             snprintf(ipb, sizeof(ipb), "> %u.%u.%u.%u", (unsigned)relayIp[0],
@@ -762,7 +762,7 @@ static void renderMsgScreen(int cat, const char *title, uint16_t titleColor, con
         if (ago < 90) snprintf(tb, sizeof(tb), "%lus ago", (unsigned long)ago);
         else snprintf(tb, sizeof(tb), "%lum ago", (unsigned long)(ago / 60));
         txt(128 - textW(tb, 1) - 2, y, 1, C_DARKGREY, tb);
-        // 1a msg: ate 4 linhas; as antigas 2
+        // 1st msg: up to 4 lines; older ones 2
         int lines = drawWrapped(4, y, 21, i == 0 ? 4 : 2, i == 0 ? C_WHITE : C_LIGHTGREY, m.payload);
         y += lines * 10 + 4;
         if (i == 0) cv.drawFastHLine(0, y - 2, 128, 0x2104);
@@ -777,7 +777,7 @@ static void renderInfoScreen()
 
     line(String("link: ") + (chLocked ? "OK ch " + String(curCh) : "searching"),
          chLocked ? C_GREEN : C_YELLOW);
-    line(String("pacotes ESP-NOW: ") + String((unsigned long)enowRx), C_WHITE);
+    line(String("ESP-NOW packets: ") + String((unsigned long)enowRx), C_WHITE);
     if (havePrices)
     {
         uint32_t ago = (millis() - lastPriceRx) / 1000;
@@ -787,12 +787,12 @@ static void renderInfoScreen()
     }
     else
         line("price: waiting for relay", C_YELLOW);
-    line(String("clima: ") + (haveWeather ? "ok" : "waiting"), haveWeather ? C_WHITE : C_YELLOW);
+    line(String("weather: ") + (haveWeather ? "ok" : "waiting"), haveWeather ? C_WHITE : C_YELLOW);
     line(String("time: ") + (haveTime ? "synced" : "waiting NTP"),
          haveTime ? C_WHITE : C_YELLOW);
     line(String("mesh ") + String((unsigned long)mqTotal[MQ_MESH]) +
-             "  alerta " + String((unsigned long)mqTotal[MQ_ALERT]) +
-             "  impr " + String((unsigned long)mqTotal[MQ_PRINT]),
+             "  alert " + String((unsigned long)mqTotal[MQ_ALERT]) +
+             "  print " + String((unsigned long)mqTotal[MQ_PRINT]),
          C_WHITE);
     line(String("heap: ") + String(ESP.getFreeHeap() / 1024) + " KB", C_DARKGREY);
     line(String("up: ") + String((unsigned long)(millis() / 1000)) + "s", C_DARKGREY);
@@ -810,16 +810,16 @@ static void drawAlertOverlay()
     cv.fillRect(0, y, 128, h, C_NAVY);
     cv.drawRect(0, y, 128, h, C_YELLOW);
 
-    txt(4, y + 4, 1, C_YELLOW, c == MQ_MESH ? "Meshtastic" : "Alerta");
+    txt(4, y + 4, 1, C_YELLOW, c == MQ_MESH ? "Meshtastic" : "Alert");
     drawWrapped(4, y + 18, 21, 5, C_WHITE, m.payload);
 }
 
-// --------------------------- tela do relogio --------------------------
-static const char *DIA_SEM[7] =
-    {"DOMINGO", "SEGUNDA", "TERCA", "QUARTA", "QUINTA", "SEXTA", "SABADO"};
-static const char *MES_NOME[12] =
-    {"JANEIRO", "FEVEREIRO", "MARCO", "ABRIL", "MAIO", "JUNHO",
-     "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"};
+// --------------------------- clock screen --------------------------
+static const char *WEEKDAY[7] =
+    {"SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"};
+static const char *MONTH_NAME[12] =
+    {"JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE",
+     "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"};
 
 static void renderClockScreen()
 {
@@ -840,25 +840,25 @@ static void renderClockScreen()
     struct tm t;
     gmtime_r(&local, &t);
 
-    // dia da semana
-    centered(DIA_SEM[t.tm_wday % 7], 26, 2, C_ORANGE);
+    // weekday
+    centered(WEEKDAY[t.tm_wday % 7], 26, 2, C_ORANGE);
 
-    // HH:MM grande (size 4 = 24px/char). ':' pisca (trocado por ' ' -> largura fixa)
+    // big HH:MM (size 4 = 24px/char). ':' blinks (swapped for ' ' -> fixed width)
     char hm[8];
     snprintf(hm, sizeof(hm), "%02d%c%02d", t.tm_hour, (t.tm_sec & 1) ? ':' : ' ', t.tm_min);
     txt((128 - 5 * 24) / 2, 52, 4, C_WHITE, hm);
 
-    // segundos, centralizado
+    // seconds, centered
     char ss[6];
     snprintf(ss, sizeof(ss), "%02d s", t.tm_sec);
     centered(ss, 88, 1, C_CYAN);
 
-    // data por extenso
+    // full date
     char dt[28];
-    snprintf(dt, sizeof(dt), "%02d %s %04d", t.tm_mday, MES_NOME[t.tm_mon % 12], t.tm_year + 1900);
+    snprintf(dt, sizeof(dt), "%02d %s %04d", t.tm_mday, MONTH_NAME[t.tm_mon % 12], t.tm_year + 1900);
     centered(dt, 102, 1, C_LIGHTGREY);
 
-    // barra do minuto (segundos/60)
+    // minute bar (seconds/60)
     int w = t.tm_sec * 116 / 60;
     cv.drawRect(6, 116, 116, 6, C_PNUT_RED);
     if (w > 0) cv.fillRect(6, 116, w, 6, C_PNUT_RED);
@@ -896,14 +896,14 @@ static void renderFrame()
         case SCR_BTC:    renderCoinScreen(btcState, "BTC/USD", drawBtcIcon); break;
         case SCR_ETH:    renderCoinScreen(ethState, "ETH/USD", drawEthIcon); break;
         case SCR_USDBRL: renderCoinScreen(usdtState, "USD/BRL", drawUsdIcon); break;
-        case SCR_CLIMA:  renderWeatherScreen(); break;
-        case SCR_RELOGIO: renderClockScreen(); break;
+        case SCR_WEATHER:  renderWeatherScreen(); break;
+        case SCR_CLOCK: renderClockScreen(); break;
         case SCR_MESH:   renderMsgScreen(MQ_MESH, "Meshtastic", C_GREEN, "no messages"); break;
         case SCR_ALERT:  renderMsgScreen(MQ_ALERT, "Alerts", C_YELLOW, "no alerts"); break;
         case SCR_PRINT:  renderMsgScreen(MQ_PRINT, "Printer", C_CYAN, "no status"); break;
         case SCR_INFO:   renderInfoScreen(); break;
         }
-        // rodape com nome/posicao da tela nas telas sem ticker proprio
+        // footer with the screen name/position on screens without their own ticker
         if (screen >= SCR_MESH)
         {
             char pb[16]; snprintf(pb, sizeof(pb), "%s %d/%d", SCR_NAMES[screen], screen + 1, SCR_COUNT);
@@ -949,8 +949,8 @@ static void handleButtons()
 
 static void channelTask()
 {
-    // se travou mas o preco ficou velho (relay trocou de canal / caiu),
-    // destrava e volta a varrer
+    // if it's locked but the price went stale (relay changed channel / dropped),
+    // unlock and start sweeping again
     if (chLocked && havePrices && millis() - lastPriceRx > LINK_STALE_MS)
     {
         chLocked = false;
@@ -980,7 +980,7 @@ void setup()
     tft.initR(INITR_144GREENTAB);
     tft.setRotation(2);
 
-    // autoteste do display
+    // display self-test
     tft.fillScreen(C_RED); delay(250);
     tft.fillScreen(C_GREEN); delay(250);
     tft.fillScreen(0x001F); delay(250);
@@ -1046,7 +1046,7 @@ void loop()
             struct tm t; gmtime_r(&lt, &t);
             snprintf(hhmm, sizeof(hhmm), "%02d:%02d:%02d", t.tm_hour, t.tm_min, t.tm_sec);
         }
-        Serial.printf("rx=%lu ch=%d lock=%d btc=%.0f eth=%.0f usdbrl=%.3f wx=%.1fC mqtt=%lu hora=%s heap=%u\n",
+        Serial.printf("rx=%lu ch=%d lock=%d btc=%.0f eth=%.0f usdbrl=%.3f wx=%.1fC mqtt=%lu time=%s heap=%u\n",
                       (unsigned long)enowRx, curCh, (int)chLocked,
                       btcState.usd, ethState.usd, usdtState.brl, (double)wxTemp,
                       (unsigned long)mqttRxCount, hhmm, ESP.getFreeHeap());

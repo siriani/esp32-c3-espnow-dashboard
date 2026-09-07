@@ -24,7 +24,7 @@
 
 static CentronicsPrinter printer;
 
-// ---- buffer circular entre a Serial (USB) e a impressora -------------------
+// ---- ring buffer between Serial (USB) and the printer ---------------------
 static uint8_t  ring[PRN_RING_SIZE];
 static size_t   rHead = 0, rTail = 0;
 
@@ -37,16 +37,16 @@ static inline void    ringPop()   { rTail = (rTail + 1) & (PRN_RING_SIZE - 1); }
 static bool xoffSent = false;
 
 #if PRN_TEXT_MODE
-static bool sawCR = false;      // acabamos de empurrar um CRLF por causa de um CR
+static bool sawCR = false;      // we just pushed a CRLF because of a CR
 #endif
 
 #if defined(PRN_DEBUG)
-// ---- comandos de bancada (digite a linha e Enter) ----
-//   @DIAG        autoteste completo (varre D0..D7, pulsa /STROBE)
-//   @PINS        mostra SELECT/BUSY/PE/ERROR por 8 s (mexa o On Line da impressora)
-//   @D0 .. @D7   forca so aquela linha de dados em ALTO (mede no DB25 2..9)
-//   @DX          zera o barramento de dados
-//   @ST          um pulso lento de /STROBE, olhando o BUSY
+// ---- bench commands (type the line + Enter) ----
+//   @DIAG        full self-test (sweeps D0..D7, pulses /STROBE)
+//   @PINS        shows SELECT/BUSY/PE/ERROR for 8 s (toggle the printer's On Line)
+//   @D0 .. @D7   force just that data line HIGH (measure on DB25 2..9)
+//   @DX          clear the data bus
+//   @ST          one slow /STROBE pulse, watching BUSY
 #include <string.h>
 static char g_cmd[12];
 static uint8_t g_cmdn = 0;
@@ -54,7 +54,7 @@ static uint8_t g_cmdn = 0;
 static void runCmd(const char* s) {
     if (!strcmp(s, "@DIAG")) { printer.diagnostics(Serial); return; }
     if (!strcmp(s, "@PINS")) {
-        Serial.println(F("[PINS] 8 s - mexa o On Line / tampa / papel e observe:"));
+        Serial.println(F("[PINS] 8 s - toggle On Line / cover / paper and watch:"));
         const uint32_t t0 = millis();
         while (millis() - t0 < 8000) {
             Serial.print(F("  SELECT=")); Serial.print(digitalRead(PIN_SELECT));
@@ -68,18 +68,18 @@ static void runCmd(const char* s) {
     if (s[0] == '@' && s[1] == 'D' && s[2] >= '0' && s[2] <= '7' && s[3] == 0) {
         printer.dbgSetData((uint8_t)(1u << (s[2] - '0')));
         Serial.print(F("[D")); Serial.print(s[2]);
-        Serial.print(F("] ALTO -> meca no DB25 pino ")); Serial.print(s[2] - '0' + 2);
-        Serial.println(F(" (~5 V). '@DX' zera."));
+        Serial.print(F("] HIGH -> measure on DB25 pin ")); Serial.print(s[2] - '0' + 2);
+        Serial.println(F(" (~5 V). '@DX' clears."));
         return;
     }
-    if (!strcmp(s, "@DX")) { printer.dbgSetData(0); Serial.println(F("[DX] dados = 0")); return; }
+    if (!strcmp(s, "@DX")) { printer.dbgSetData(0); Serial.println(F("[DX] data = 0")); return; }
     if (!strcmp(s, "@ST")) {
         const bool a = printer.busy();
         printer.dbgStrobe(5);
         delay(15);
         const bool b = printer.busy();
-        Serial.print(F("[ST] BUSY antes=")); Serial.print(a);
-        Serial.print(F("  depois=")); Serial.println(b);
+        Serial.print(F("[ST] BUSY before=")); Serial.print(a);
+        Serial.print(F("  after=")); Serial.println(b);
         return;
     }
 }
@@ -97,7 +97,7 @@ static void feedCmd(uint8_t c) {
 
 // ---------------------------------------------------------------------------
 static void pumpSerialIntoRing() {
-    // deixa folga de 2 bytes (MODO TEXTO pode empurrar CRLF de uma vez)
+    // leave 2 bytes of headroom (TEXT MODE can push a CRLF at once)
     while (Serial.available() && ringFree() > 2) {
         const uint8_t c = (uint8_t) Serial.read();
 #if defined(PRN_DEBUG)
@@ -105,7 +105,7 @@ static void pumpSerialIntoRing() {
 #endif
 #if PRN_TEXT_MODE
         if (c == '\r') { ringPush('\r'); ringPush('\n'); sawCR = true;  continue; }
-        if (c == '\n') { if (sawCR) { sawCR = false; continue; }        // engole o \n do CRLF
+        if (c == '\n') { if (sawCR) { sawCR = false; continue; }        // swallow the \n of a CRLF
                          ringPush('\r'); ringPush('\n'); continue; }
         sawCR = false;
         ringPush(c);
@@ -119,10 +119,10 @@ static void pumpSerialIntoRing() {
 static void updateFlowControl() {
 #if PRN_XONXOFF
     if (!xoffSent && ringCount() > (PRN_RING_SIZE * 3 / 4)) {
-        Serial.write(0x13);        // XOFF -> host, pare de enviar
+        Serial.write(0x13);        // XOFF -> host, stop sending
         xoffSent = true;
     } else if (xoffSent && ringCount() < (PRN_RING_SIZE / 4)) {
-        Serial.write(0x11);        // XON  -> host, pode enviar
+        Serial.write(0x11);        // XON  -> host, may send
         xoffSent = false;
     }
 #endif
@@ -130,7 +130,7 @@ static void updateFlowControl() {
 
 // ---------------------------------------------------------------------------
 static void reportPause(CentronicsPrinter::Status s) {
-    digitalWrite(PIN_LED, (millis() / 120) & 1);   // pisca
+    digitalWrite(PIN_LED, (millis() / 120) & 1);   // blink
 #if PRN_XONXOFF
     if (!xoffSent) { Serial.write(0x13); xoffSent = true; }
 #endif
@@ -138,12 +138,12 @@ static void reportPause(CentronicsPrinter::Status s) {
     static uint32_t last = 0;
     if (millis() - last < 1000) return;
     last = millis();
-    Serial.print(F("[impressora] pausada: "));
+    Serial.print(F("[printer] paused: "));
     switch (s) {
-        case CentronicsPrinter::Status::Offline:     Serial.println(F("OFF-LINE / desligada")); break;
-        case CentronicsPrinter::Status::PaperOut:    Serial.println(F("SEM PAPEL"));            break;
-        case CentronicsPrinter::Status::Fault:       Serial.println(F("ERRO (/ERROR baixo)")); break;
-        case CentronicsPrinter::Status::BusyTimeout: Serial.println(F("BUSY travado"));         break;
+        case CentronicsPrinter::Status::Offline:     Serial.println(F("OFFLINE / powered off")); break;
+        case CentronicsPrinter::Status::PaperOut:    Serial.println(F("OUT OF PAPER"));          break;
+        case CentronicsPrinter::Status::Fault:       Serial.println(F("ERROR (/ERROR low)"));    break;
+        case CentronicsPrinter::Status::BusyTimeout: Serial.println(F("BUSY stuck"));            break;
         default: Serial.println(); break;
     }
 #else
@@ -153,22 +153,22 @@ static void reportPause(CentronicsPrinter::Status s) {
 
 // ---------------------------------------------------------------------------
 static void pumpRingIntoPrinter() {
-    // rajadas curtas para nao segurar o loop() por muito tempo
+    // short bursts so we don't hold up loop() for too long
     for (uint8_t n = 0; n < 64 && ringCount() > 0; n++) {
         const CentronicsPrinter::Status s = printer.writeByte(ringPeek());
         if (s == CentronicsPrinter::Status::Ok) {
             ringPop();
         } else {
             reportPause(s);
-            return;                 // tenta de novo no proximo loop
+            return;                 // try again next loop
         }
     }
     digitalWrite(PIN_LED, ringCount() ? HIGH : LOW);
 }
 
 // ===========================================================================
-//  Interface publica (print_queue.h) usada pelo servidor web (src/web_print).
-//  Roda no core 1, no mesmo contexto do loop(): sem concorrencia com o driver.
+//  Public interface (print_queue.h) used by the web server (src/web_print).
+//  Runs on core 1, same context as loop(): no contention with the driver.
 // ===========================================================================
 size_t printerEnqueue(const uint8_t *data, size_t len) {
     size_t i = 0;
@@ -182,7 +182,7 @@ size_t printerEnqueue(const uint8_t *data, size_t len) {
             continue;
         }
         if (c == '\n') {
-            if (sawCR) { sawCR = false; continue; }   // engole o \n do CRLF
+            if (sawCR) { sawCR = false; continue; }   // swallow the \n of a CRLF
             if (ringFree() < 2) break;
             ringPush('\r'); ringPush('\n');
             continue;
@@ -215,15 +215,15 @@ size_t printerQueueFree()  { return ringFree(); }
 
 const char *printerBlockedReason() {
 #if !PRN_IGNORE_STATUS
-    if (!printer.online())  return "impressora off-line ou desligada";
-    if (printer.paperOut()) return "sem papel";
-    if (printer.fault())    return "erro na impressora (/ERROR)";
+    if (!printer.online())  return "offline";
+    if (printer.paperOut()) return "out of paper";
+    if (printer.fault())    return "error";
 #endif
     return nullptr;
 }
 
-// Publica no MQTT (via btc_relay) sempre que o estado muda:
-//   pronta | imprimindo | sem papel | off-line | erro
+// Publishes to MQTT (via btc_relay) whenever the state changes:
+//   ready | printing | out of paper | offline | error
 static void pollPrinterMqtt() {
     static uint32_t last = 0, lastActivity = 0;
     static size_t   lastRing = (size_t)-1;
@@ -234,15 +234,15 @@ static void pollPrinterMqtt() {
     if (rc != lastRing) { lastActivity = millis(); lastRing = rc; }
 
     const char *blk = printerBlockedReason();
-    const char *estado = blk ? blk
-                       : (rc > 0 || millis() - lastActivity < 3000) ? "imprimindo"
-                       : "pronta";
-    btcRelayPublishPrinter(estado);
+    const char *state = blk ? blk
+                      : (rc > 0 || millis() - lastActivity < 3000) ? "printing"
+                      : "ready";
+    btcRelayPublishPrinter(state);
 }
 
 // ---------------------------------------------------------------------------
 void setup() {
-    Serial.setRxBufferSize(PRN_RX_BUFFER);   // precisa vir ANTES de begin()
+    Serial.setRxBufferSize(PRN_RX_BUFFER);   // must come BEFORE begin()
     Serial.begin(SERIAL_BAUD);
 
     pinMode(PIN_LED, OUTPUT);
@@ -256,23 +256,23 @@ void setup() {
 
 #if !defined(PRN_NO_BANNER)
     Serial.println();
-    Serial.println(F("=== ESP32 <-> EPSON LX-810L : ponte serial -> paralela ==="));
+    Serial.println(F("=== ESP32 <-> EPSON LX-810L : serial -> parallel bridge ==="));
     Serial.print  (F("baud="));  Serial.print(SERIAL_BAUD);
-    Serial.print  (F("  modo=")); Serial.println(PRN_TEXT_MODE ? F("TEXTO (CRLF auto)") : F("RAW"));
-    Serial.print  (F("on-line=")); Serial.print(printer.online() ? F("sim") : F("NAO"));
-    Serial.print  (F("  papel=")); Serial.print(printer.paperOut() ? F("FALTA") : F("ok"));
-    Serial.print  (F("  erro="));  Serial.println(printer.fault() ? F("SIM") : F("nao"));
-    Serial.println(F("PRONTO. Envie texto para imprimir."));
+    Serial.print  (F("  mode=")); Serial.println(PRN_TEXT_MODE ? F("TEXT (CRLF auto)") : F("RAW"));
+    Serial.print  (F("online=")); Serial.print(printer.online() ? F("yes") : F("NO"));
+    Serial.print  (F("  paper=")); Serial.print(printer.paperOut() ? F("OUT") : F("ok"));
+    Serial.print  (F("  error="));  Serial.println(printer.fault() ? F("YES") : F("no"));
+    Serial.println(F("READY. Send text to print."));
 #endif
 
-    // servidor HTTP no proprio ESP32: pagina com formulario + endpoint REST
-    // /print. Sobe o WiFi STA (se ainda ninguem subiu) antes do btc_relay.
+    // HTTP server on the ESP32 itself: a page with a form + REST endpoint
+    // /print. Brings up WiFi STA (if nobody did yet) before btc_relay.
     webPrintBegin();
 
-    // impressora de rede JetDirect (porta 9100) + anuncio mDNS "EPSON LX-810L"
+    // JetDirect network printer (port 9100) + mDNS advert "EPSON LX-810L"
     rawPrintBegin();
 
-    // tarefa opcional no core 0: relay do preco do BTC via ESP-NOW (config.h)
+    // optional core-0 task: BTC price relay over ESP-NOW (config.h)
     btcRelayBegin();
 }
 

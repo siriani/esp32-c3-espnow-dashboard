@@ -100,8 +100,8 @@ can also use `http://dotmatrix.local/` (mDNS, name in `WEBPRINT_HOSTNAME`).
 | Route | Method | What it does |
 |-------|--------|--------------|
 | `/` | GET | HTML page: `<textarea>` + **Print** button + status badge |
-| `/print` | POST | enqueue text: form field `texto` **or** the raw body with `Content-Type: text/plain` |
-| `/status` | GET | JSON: `pronta`, `estado`, `fila_livre`, `fila_total`, `fila_vazia`, `ip` |
+| `/print` | POST | enqueue text: form field `text` **or** the raw body with `Content-Type: text/plain` |
+| `/status` | GET | JSON: `ready`, `state`, `queue_free`, `queue_total`, `queue_empty`, `ip` |
 
 ```bash
 # raw body (needs Content-Type: text/plain)
@@ -111,14 +111,14 @@ curl -sS --data-binary $'Report\r\n\f' -H 'Content-Type: text/plain' \
 curl -sS --data-binary @report.txt -H 'Content-Type: text/plain' \
      http://dotmatrix.local/print
 # via the form field
-curl -sS --data-urlencode 'texto=Hello world' http://dotmatrix.local/print
+curl -sS --data-urlencode 'text=Hello world' http://dotmatrix.local/print
 # status
 curl -sS http://dotmatrix.local/status
 ```
 
 Without the `Content-Type: text/plain` header, `curl --data*` sends
-`application/x-www-form-urlencoded`, so you must use the `texto` field
-(`--data-urlencode 'texto=...'`). Received text goes into the **same queue**
+`application/x-www-form-urlencoded`, so you must use the `text` field
+(`--data-urlencode 'text=...'`). Received text goes into the **same queue**
 as the serial bridge and passes through TEXT MODE (CR/LF → CRLF). Limits:
 `WEBPRINT_MAX_BODY` (16 KB) per request; `WEBPRINT_FEED_TIMEOUT_MS` (20 s)
 for the queue to drain. Optional token: `WEBPRINT_TOKEN` != `""` requires
@@ -192,5 +192,5 @@ Fixes:
 | `dotmatrix.local` **doesn't resolve** | mDNS blocked, or OS without Bonjour/avahi | use the IP directly (serial monitor); on Linux install `avahi-daemon` |
 | `POST /print` → **503** | printer offline / no paper / error | same checklist as "LED blinking" |
 | `POST /print` → **504** | the queue didn't drain (slow or stuck printer) | check the printer; resend; raise `WEBPRINT_FEED_TIMEOUT_MS` |
-| Page opens but **"estado: —"** | `/status` blocked by a token, or JS disabled | check `WEBPRINT_TOKEN`; printing via the form works without JS |
+| Page opens but **"state: —"** | `/status` blocked by a token, or JS disabled | check `WEBPRINT_TOKEN`; printing via the form works without JS |
 | Web won't connect / no IP in the log | wrong SSID/password in `WEBPRINT_WIFI_*` | fix it in `include/config.h`; the log shows `WiFi sem associacao` |

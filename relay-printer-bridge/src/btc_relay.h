@@ -9,11 +9,11 @@
 // ============================================================================
 #pragma once
 
-void btcRelayBegin(); // no-op se BTC_RELAY_ENABLE == 0
+void btcRelayBegin(); // no-op if BTC_RELAY_ENABLE == 0
 
-// Publica o status da impressora em MQTT (topico "impressora/status",
-// retido). Chame do core 1 (loop()) -- so guarda a string; quem publica
-// e a task do relay no core 0, sem concorrencia no PubSubClient.
-// Passe uma frase curta ("pronta", "imprimindo", "sem papel", ...).
-// no-op se BTC_RELAY_ENABLE ou BTC_MQTT_ENABLE == 0.
-void btcRelayPublishPrinter(const char *estado);
+// Publish the printer status to MQTT (topic "printer/status", retained).
+// Call from core 1 (loop()) -- it only stores the string; the actual
+// publish happens on the relay task on core 0, so PubSubClient is never
+// touched from two cores. Pass a short phrase ("ready", "printing",
+// "out of paper", ...). no-op if BTC_RELAY_ENABLE or BTC_MQTT_ENABLE == 0.
+void btcRelayPublishPrinter(const char *state);

@@ -161,7 +161,7 @@
 //  WEB PRINT  -  HTTP server on the ESP32 (runs in loop(), core 1, never
 //  races the Centronics driver).
 //    GET  /         page with a <textarea> + "Print" button
-//    POST /print    print the form field "texto" OR the raw body
+//    POST /print    print the form field "text" OR the raw body
 //                   (Content-Type: text/plain)   -> REST endpoint
 //    GET  /status   JSON: printer state + queue occupancy
 //  Disable: -D WEBPRINT_ENABLE=0

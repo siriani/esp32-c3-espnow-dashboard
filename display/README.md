@@ -17,8 +17,8 @@ cycle:
 | 4 | Weather | temp, "feels like", code-drawn icon, 24h sparkline |
 | 5 | Clock | NTP time relayed from the ESP32, blinking colon, date, minute bar |
 | 6 | Meshtastic | rolling log of `meshtastic/rx` text messages |
-| 7 | Alerts | rolling log of `esp32ticker/alerta`, `home/*` |
-| 8 | Printer | rolling log of `impressora/status` |
+| 7 | Alerts | rolling log of `esp32ticker/alert`, `home/*` |
+| 8 | Printer | rolling log of `printer/status` |
 | 9 | Info | link state, channel, packet counts, heap, uptime |
 
 New Meshtastic / Alert messages also flash a banner over the current screen.

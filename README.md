@@ -98,7 +98,7 @@ LX-810L and exposes three ways to print:
    renderer on an ESP32); the real LX-810L interprets the ESC/P.
 
 Printer state (`ready` / `printing` / `out of paper` / `offline` / `error`)
-is published to MQTT (`impressora/status`, retained) and shown on the
+is published to MQTT (`printer/status`, retained) and shown on the
 display's Printer screen.
 
 Hardware notes, level-shifting and the DB25 wiring are in
@@ -124,11 +124,11 @@ See each folder's `README.md` for wiring, toolchain notes and gotchas.
 
 ## Notes on the code
 
-Everything under `docs/`, every `README.md`, `config.h`, `enow_proto.h`, the
-`platformio.ini` files, all on-screen strings and every source-file header
-block are in English. Deeper inline `// ...` comments in the `.cpp` bodies
-are still the author's Portuguese and are being translated — the docs are
-the canonical reference in the meantime.
+The whole tree is in English: `docs/`, every `README.md`, `config.h`,
+`enow_proto.h`, the `platformio.ini` files, all on-screen strings, and every
+comment in the source. On-the-wire names match the docs — MQTT `printer/status`
+with a `{"state":"..."}` payload, and the `/status` JSON keys `ready` /
+`state` / `queue_free` / `queue_total` / `queue_empty`.
 
 ## License
 

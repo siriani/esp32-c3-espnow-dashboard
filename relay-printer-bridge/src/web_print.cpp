@@ -16,7 +16,7 @@
 #include "web_print.h"
 #include "print_queue.h"
 
-// ---- defaults (sobrescreva em include/config.h) ----------------------------
+// ---- defaults (override in include/config.h) -----------------------------
 #ifndef WEBPRINT_WIFI_SSID
 #define WEBPRINT_WIFI_SSID BTC_WIFI_SSID
 #endif
@@ -52,16 +52,16 @@
 #endif
 
 static WebServer server(WEBPRINT_PORT);
-static bool g_announced = false;   // ja logou IP / registrou mDNS
+static bool g_announced = false;   // already logged the IP / registered mDNS
 
-// ---- pagina HTML ----------------------------------------------------------
-// Sem recursos externos (o ESP nao serve CDN e a rede e local). Marcadores
-// %SENT% / %HOST% / %TOKEN% sao trocados a cada request.
+// ---- HTML page ----------------------------------------------------------
+// No external resources (the ESP can't serve a CDN and the network is local).
+// The %SENT% / %HOST% / %TOKEN% markers are substituted on every request.
 static const char PAGE[] PROGMEM = R"HTML(<!doctype html>
-<html lang="pt-br">
+<html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Impressora LX-810L</title>
+<title>LX-810L printer</title>
 <style>
  :root{color-scheme:light dark}
  body{font-family:system-ui,-apple-system,sans-serif;max-width:42rem;margin:2rem auto;padding:0 1rem;line-height:1.4}
@@ -76,19 +76,19 @@ static const char PAGE[] PROGMEM = R"HTML(<!doctype html>
  footer{margin-top:1.6rem;font-size:.8rem;opacity:.75}
  code{background:#8882;padding:.05rem .3rem;border-radius:.25rem;word-break:break-all}
 </style>
-<h1>&#128424;&#65039; Impressora EPSON LX-810L</h1>
+<h1>&#128424;&#65039; EPSON LX-810L printer</h1>
 %SENT%
 <form method="post" action="print">
- <textarea name="texto" autofocus placeholder="Escreva aqui o que quer imprimir..."></textarea>
+ <textarea name="text" autofocus placeholder="Type what you want to print..."></textarea>
  <input type="hidden" name="token" value="%TOKEN%">
  <div class="row">
-  <button type="submit">Imprimir</button>
-  <label><input type="checkbox" name="ff" value="1"> avan&ccedil;ar p&aacute;gina no fim</label>
-  <span class="badge" id="st">estado: &mdash;</span>
+  <button type="submit">Print</button>
+  <label><input type="checkbox" name="ff" value="1"> form feed at the end</label>
+  <span class="badge" id="st">state: &mdash;</span>
  </div>
 </form>
 <footer>
- REST: <code>curl -sS --data-binary @arquivo.txt -H "Content-Type: text/plain" http://%HOST%/print</code>
+ REST: <code>curl -sS --data-binary @file.txt -H "Content-Type: text/plain" http://%HOST%/print</code>
  <div id="q" style="margin-top:.4rem"></div>
 </footer>
 <script>
@@ -98,9 +98,9 @@ async function poll(){
  try{
   var r=await fetch(q('status'),{cache:'no-store'});var j=await r.json();
   var s=document.getElementById('st');
-  s.textContent='estado: '+j.estado;
-  s.className='badge '+(j.pronta?'ok':'bad');
-  document.getElementById('q').textContent='fila: '+j.fila_livre+' de '+j.fila_total+' bytes livres';
+  s.textContent='state: '+j.state;
+  s.className='badge '+(j.ready?'ok':'bad');
+  document.getElementById('q').textContent='queue: '+j.queue_free+' of '+j.queue_total+' bytes free';
  }catch(e){}
 }
 poll();setInterval(poll,3000);
@@ -135,9 +135,9 @@ static void announce()
     if (host && host[0] && MDNS.begin(host))
         MDNS.addService("http", "tcp", WEBPRINT_PORT);
 
-    WPLOG("pronto -> http://%s/", WiFi.localIP().toString().c_str());
+    WPLOG("ready -> http://%s/", WiFi.localIP().toString().c_str());
     if (host && host[0])
-        Serial.printf("   ou  http://%s.local/", host);
+        Serial.printf("   or  http://%s.local/", host);
     Serial.println();
 }
 
@@ -147,7 +147,7 @@ static void handleRoot()
     String sent;
     if (server.hasArg("sent"))
         sent = "<div class=\"sent\">&#10004; " + String(server.arg("sent").toInt()) +
-               " bytes enviados para impress&atilde;o.</div>";
+               " bytes sent to the printer.</div>";
 
     String page = FPSTR(PAGE);
     page.replace("%SENT%", sent);
@@ -162,15 +162,15 @@ static void handleStatus()
 {
     const char *blk = printerBlockedReason();
     String j = "{";
-    j += "\"pronta\":";
+    j += "\"ready\":";
     j += (blk ? "false" : "true");
-    j += ",\"estado\":\"";
-    j += (blk ? blk : "ok");
-    j += "\",\"fila_livre\":";
+    j += ",\"state\":\"";
+    j += (blk ? blk : "ready");
+    j += "\",\"queue_free\":";
     j += printerQueueFree();
-    j += ",\"fila_total\":";
+    j += ",\"queue_total\":";
     j += (uint32_t)(PRN_RING_SIZE - 1);
-    j += ",\"fila_vazia\":";
+    j += ",\"queue_empty\":";
     j += (printerQueueEmpty() ? "true" : "false");
     j += ",\"ip\":\"";
     j += WiFi.localIP().toString();
@@ -184,17 +184,17 @@ static void handlePrint()
 {
     if (!authOk())
     {
-        server.send(401, "text/plain; charset=utf-8", "token invalido\n");
+        server.send(401, "text/plain; charset=utf-8", "invalid token\n");
         return;
     }
 
-    // fonte do texto: campo "texto" (formulario) ou o corpo cru ("plain",
-    // enviado com Content-Type: text/plain)
+    // text source: form field "text", or the raw body ("plain", sent with
+    // Content-Type: text/plain)
     String body;
     bool fromForm = false;
-    if (server.hasArg("texto"))
+    if (server.hasArg("text"))
     {
-        body = server.arg("texto");
+        body = server.arg("text");
         fromForm = true;
     }
     else if (server.hasArg("plain"))
@@ -204,8 +204,8 @@ static void handlePrint()
     else
     {
         server.send(400, "text/plain; charset=utf-8",
-                    "nada para imprimir: use o campo 'texto' (form) ou "
-                    "envie o corpo com Content-Type: text/plain\n");
+                    "nothing to print: use the 'text' field (form) or "
+                    "send the body with Content-Type: text/plain\n");
         return;
     }
 
@@ -217,13 +217,13 @@ static void handlePrint()
     }
     if (body.length() == 0)
     {
-        server.send(400, "text/plain; charset=utf-8", "corpo vazio\n");
+        server.send(400, "text/plain; charset=utf-8", "empty body\n");
         return;
     }
     if (body.length() > WEBPRINT_MAX_BODY)
     {
         server.send(413, "text/plain; charset=utf-8",
-                    String("texto grande demais (max ") + WEBPRINT_MAX_BODY + " bytes)\n");
+                    String("text too large (max ") + WEBPRINT_MAX_BODY + " bytes)\n");
         return;
     }
 
@@ -231,14 +231,14 @@ static void handlePrint()
     if (blk)
     {
         server.send(503, "text/plain; charset=utf-8",
-                    String("impressora indisponivel: ") + blk + "\n");
+                    String("printer unavailable: ") + blk + "\n");
         return;
     }
 
     if (fromForm && server.hasArg("ff"))
-        body += '\f'; // form feed: avanca a pagina no fim do job
+        body += '\f'; // form feed: advance the page at the end of the job
 
-    // empurra para a fila escoando ao mesmo tempo; desiste se a fila travar
+    // push into the queue while draining it at the same time; give up if it stalls
     const uint8_t *p = (const uint8_t *)body.c_str();
     const size_t total = body.length();
     size_t done = 0;
@@ -258,13 +258,13 @@ static void handlePrint()
         }
     }
 
-    WPLOG("POST /print: %u de %u bytes enfileirados%s\n",
+    WPLOG("POST /print: %u of %u bytes queued%s\n",
           (unsigned)done, (unsigned)total, done < total ? " (TIMEOUT)" : "");
 
     if (done < total)
     {
         server.send(504, "text/plain; charset=utf-8",
-                    String("tempo esgotado: ") + done + " de " + total + " bytes enfileirados\n");
+                    String("timed out: ") + done + " of " + total + " bytes queued\n");
         return;
     }
     if (fromForm)
@@ -275,7 +275,7 @@ static void handlePrint()
     else
     {
         server.send(200, "text/plain; charset=utf-8",
-                    String("ok: ") + done + " bytes enfileirados\n");
+                    String("ok: ") + done + " bytes queued\n");
     }
 }
 
@@ -288,7 +288,7 @@ void webPrintBegin()
     if (host && host[0])
         WiFi.setHostname(host);
 
-    // so inicia a associacao se ninguem (ex.: btc_relay) ja fez
+    // only start associating if nobody (e.g. btc_relay) already did
     if (WiFi.status() != WL_CONNECTED)
     {
         WiFi.mode(WIFI_STA);
@@ -310,13 +310,13 @@ void webPrintBegin()
     server.on("/print", HTTP_GET, []()
               { server.sendHeader("Location", "/"); server.send(303, "text/plain", ""); });
     server.onNotFound([]()
-                      { server.send(404, "text/plain; charset=utf-8", "nao encontrado\n"); });
+                      { server.send(404, "text/plain; charset=utf-8", "not found\n"); });
     server.begin();
 
     if (WiFi.status() == WL_CONNECTED)
         announce();
     else
-        WPLOG("WiFi sem associacao ainda; servidor sobe assim que conectar\n");
+        WPLOG("WiFi not associated yet; the server comes up as soon as it connects\n");
 }
 
 void webPrintLoop()

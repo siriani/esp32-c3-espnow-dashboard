@@ -10,28 +10,28 @@
 #include <stddef.h>
 #include <stdint.h>
 
-// Enfileira ate 'len' bytes para impressao. Aplica a MESMA normalizacao de
-// fim de linha da ponte serial (MODO TEXTO: CR, LF e CRLF -> CRLF).
-// Retorna quantos bytes couberam AGORA (pode ser < len se a fila encheu:
-// chame printerServiceOnce() para escoar e repita com o restante).
+// Enqueue up to 'len' bytes for printing. Applies the SAME end-of-line
+// normalization as the serial bridge (TEXT MODE: CR, LF and CRLF -> CRLF).
+// Returns how many bytes fit RIGHT NOW (may be < len if the queue filled:
+// call printerServiceOnce() to drain, then retry with the rest).
 size_t printerEnqueue(const uint8_t *data, size_t len);
 
-// Igual a printerEnqueue mas SEM normalizar fim de linha -- passthrough cru.
-// Use para fluxos que o host ja formatou (impressora de rede porta 9100,
-// driver ESC/P do macOS/Windows).
+// Like printerEnqueue but WITHOUT end-of-line normalization -- raw passthrough.
+// Use for streams the host already formatted (port-9100 network printer,
+// macOS/Windows ESC/P driver).
 size_t printerEnqueueRaw(const uint8_t *data, size_t len);
 
-// Escoa uma rajada da fila para a impressora (o mesmo que o loop() faz).
-// Seguro chamar de dentro de um handler HTTP.
+// Drain one burst of the queue to the printer (the same thing loop() does).
+// Safe to call from inside an HTTP handler.
 void printerServiceOnce();
 
-// true quando a fila interna esta vazia. NAO garante que a impressora ja
-// terminou de imprimir o proprio buffer interno.
+// true when the internal queue is empty. Does NOT guarantee the printer has
+// finished printing its own internal buffer.
 bool printerQueueEmpty();
 
-// Espaco livre na fila, em bytes.
+// free space in the queue, in bytes.
 size_t printerQueueFree();
 
-// nullptr se da pra imprimir agora; senao uma frase curta com o motivo
-// (off-line / sem papel / erro). Sempre nullptr com -D PRN_IGNORE_STATUS=1.
+// nullptr if it can print now; otherwise a short phrase with the reason
+// (offline / out of paper / error). Always nullptr with -D PRN_IGNORE_STATUS=1.
 const char *printerBlockedReason();

@@ -57,11 +57,10 @@ does the ESC/P interpretation.
 
 ## Printer status → MQTT
 
-Published retained to `impressora/status` as
-`{"estado":"...","ts":...}`, on change and on a 60 s heartbeat. States:
-`pronta` (ready), `imprimindo` (printing), `sem papel` (out of paper),
-`off-line ou desligada`, `erro na impressora (/ERROR)`. The relay also
-subscribes to it and forwards the `estado` string to the display's Printer
+Published retained to `printer/status` as
+`{"state":"...","ts":...}`, on change and on a 60 s heartbeat. States:
+`ready`, `printing`, `out of paper`, `offline`, `error`. The relay also
+subscribes to it and forwards the `state` string to the display's Printer
 screen.
 
 ## Hardware

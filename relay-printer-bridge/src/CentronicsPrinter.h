@@ -17,40 +17,40 @@ class CentronicsPrinter {
 public:
     enum class Status : uint8_t {
         Ok = 0,
-        Offline,      // SELECT baixo  -> impressora desligada ou off-line
-        PaperOut,     // PE alto       -> sem papel
-        Fault,        // /ERROR baixo  -> falha generica
-        BusyTimeout   // BUSY nao liberou dentro do timeout
+        Offline,      // SELECT low   -> printer powered off or offline
+        PaperOut,     // PE high      -> out of paper
+        Fault,        // /ERROR low   -> generic fault
+        BusyTimeout   // BUSY didn't clear within the timeout
     };
 
-    // Configura pinos, coloca as linhas em estado inativo e habilita o TXS0108E.
+    // Configure pins, park the lines idle and enable the TXS0108E.
     void begin();
 
-    // Pulso em /INIT (reset por hardware da impressora).
+    // Pulse on /INIT (hardware reset of the printer).
     void hardwareReset();
 
-    // "ESC @" -> reset logico do interpretador ESC/P.
+    // "ESC @" -> logical reset of the ESC/P interpreter.
     void sendReset();
 
-    // Leituras de status (ja tratam a logica ativo-baixo/ativo-alto).
+    // Status reads (active-low/active-high logic already handled).
     bool online()   const { return digitalRead(PIN_SELECT) == HIGH; }
     bool paperOut() const { return digitalRead(PIN_PE)     == HIGH; }
     bool fault()    const { return digitalRead(PIN_ERROR)  == LOW;  }
     bool busy()     const { return digitalRead(PIN_BUSY)   == HIGH; }
 
-    // Verifica se da pra enviar agora; opcionalmente espera ate timeoutMs.
+    // Check whether we can send right now; optionally wait up to timeoutMs.
     Status poll(uint32_t timeoutMs = 0);
 
-    // Envia 1 byte com o handshake completo. Retorna Ok ou o motivo da falha.
+    // Send 1 byte with the full handshake. Returns Ok or the failure reason.
     Status writeByte(uint8_t b);
 
     Status lastStatus() const { return _last; }
 
-    // Rotina de teste de bancada: varre D0..D7 e pulsa /STROBE devagar,
-    // imprimindo o estado das linhas de status. Nao imprime nada "de verdade".
+    // Bench-test routine: sweeps D0..D7 and pulses /STROBE slowly,
+    // printing the state of the status lines. Prints nothing "for real".
     void diagnostics(Print& log);
 
-    // Auxiliares de teste manual (usados pelos comandos @Dn / @ST).
+    // Manual-test helpers (used by the @Dn / @ST commands).
     void dbgSetData(uint8_t mask) { setData(mask); }
     void dbgStrobe(uint16_t lowMs) {
         digitalWrite(PIN_STROBE, LOW); delay(lowMs); digitalWrite(PIN_STROBE, HIGH);
