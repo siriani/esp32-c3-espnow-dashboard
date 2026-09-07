@@ -1,14 +1,14 @@
 // ============================================================================
-//  raw_print  -  impressora de rede "JetDirect" (socket cru, porta 9100).
+//  raw_print  -  "JetDirect" network printer (raw socket, port 9100).
 //
-//  O macOS/Windows adiciona a impressora por IP (protocolo "HP Jetdirect -
-//  Socket") e manda o job pra ca; os bytes vao CRUS pra porta paralela da
-//  LX-810L (a impressora interpreta ESC/P). Command+P de qualquer app.
+//  macOS/Windows add the printer by IP ("HP Jetdirect - Socket") and send
+//  the job here; bytes go THROUGH to the LX-810L's parallel port unchanged
+//  (the printer interprets ESC/P). Cmd+P from any app.
 //
-//  Tambem anuncia por mDNS/Bonjour como "EPSON LX-810L" (_pdl-datastream._tcp)
-//  pra aparecer no "Adicionar impressora".
+//  Also advertised over mDNS/Bonjour as "EPSON LX-810L"
+//  (_pdl-datastream._tcp) so it shows up in "Add Printer".
 //
-//  Roda no core 1 (loop()). Config: include/config.h (RAWPRINT_*).
+//  Runs on core 1 (loop()). Config: include/config.h (RAWPRINT_*).
 // ============================================================================
 #pragma once
 

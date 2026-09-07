@@ -124,9 +124,11 @@ See each folder's `README.md` for wiring, toolchain notes and gotchas.
 
 ## Notes on the code
 
-The docs and every `README.md` are the canonical English reference. Inline
-comments in the C/C++ sources are a mix of English and the author's
-Portuguese and are being translated.
+Everything under `docs/`, every `README.md`, `config.h`, `enow_proto.h`, the
+`platformio.ini` files, all on-screen strings and every source-file header
+block are in English. Deeper inline `// ...` comments in the `.cpp` bodies
+are still the author's Portuguese and are being translated — the docs are
+the canonical reference in the meantime.
 
 ## License
 

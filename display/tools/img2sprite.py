@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 """
-Converte PNG(s) com transparencia em header(s) C p/ o dashboard.
+Convert PNG(s) with transparency into C header(s) for the dashboard.
 
-  # um arquivo:
-  python3 tools/img2sprite.py IMAGEM.png [NOME] [--h 60] [--out src]
+  # one file:
+  python3 tools/img2sprite.py IMAGE.png [NAME] [--h 60] [--out src]
 
-  # uma pasta inteira (todos os *.png):
-  python3 tools/img2sprite.py PASTA/ [--h 60] [--out src/sprites]
+  # a whole folder (every *.png):
+  python3 tools/img2sprite.py FOLDER/ [--h 60] [--out src/sprites]
 
-Para cada imagem gera <out>/<nome>.h com:
-  - <nome>_data[]  : RGB565, um uint16 por pixel
-  - <nome>_mask[]  : 1 bit por pixel (1 = desenhar, 0 = transparente)
-  - <nome>_W / <nome>_H
-No modo pasta tambem gera <out>/sprites.h com um #include de todos.
+For each image it writes <out>/<name>.h with:
+  - <name>_data[]  : RGB565, one uint16 per pixel
+  - <name>_mask[]  : 1 bit per pixel (1 = draw, 0 = transparent)
+  - <name>_W / <name>_H
+In folder mode it also writes <out>/sprites.h that #includes them all.
 
-Downscale = NEAREST (mantem o pixel-art quadradinho). Use SO com imagens
-que voce tem direito de usar.
+Downscale = NEAREST (keeps the pixel-art crisp). Use ONLY with images you
+have the rights to.
 """
 import os
 import re

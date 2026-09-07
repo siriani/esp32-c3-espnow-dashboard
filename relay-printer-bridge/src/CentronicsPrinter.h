@@ -1,12 +1,13 @@
 // ============================================================================
-//  CentronicsPrinter  -  driver da interface paralela Centronics / IEEE-1284
-//  (compatibilidade "nibble"/byte classica usada pela EPSON LX-810L, ESC/P)
+//  CentronicsPrinter  -  driver for the Centronics / IEEE-1284 parallel
+//  interface (classic byte-compatibility mode, as used by the Epson
+//  LX-810L, ESC/P).
 //
-//  Handshake por byte:
-//    1) espera BUSY baixo  (e confere on-line / papel / erro)
-//    2) coloca D0..D7 no barramento
-//    3) da um pulso baixo em /STROBE  (>= 0,5 us)
-//    4) a impressora sobe BUSY, processa, e libera (pulso em /ACK)
+//  Per-byte handshake:
+//    1) wait for BUSY low  (and check on-line / paper / error)
+//    2) drive D0..D7 onto the bus
+//    3) low pulse on /STROBE  (>= 0.5 us)
+//    4) the printer raises BUSY, processes, then releases it (pulse on /ACK)
 // ============================================================================
 #pragma once
 #include <Arduino.h>

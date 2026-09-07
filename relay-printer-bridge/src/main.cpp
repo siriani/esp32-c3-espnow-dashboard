@@ -1,15 +1,18 @@
 // ============================================================================
-//  ESP32  <->  EPSON LX-810L
-//  Ponte: tudo que chega na Serial (USB) e impresso na porta paralela.
+//  ESP32  <->  Epson LX-810L
+//  Bridge: everything that arrives on Serial (USB) is printed on the
+//  parallel port. This file also wires in the ESP-NOW relay (btc_relay),
+//  the web server (web_print) and the port-9100 printer (raw_print), and
+//  produces the printer-status string that btc_relay publishes to MQTT.
 //
-//  - MODO TEXTO (padrao): CR, LF e CRLF viram CRLF -> texto do terminal sai
-//    com quebras de linha corretas.
-//  - MODO RAW (-D PRN_TEXT_MODE=0): fluxo intacto, para ESC/P binario.
+//  - TEXT MODE (default): CR, LF and CRLF all become CRLF, so terminal text
+//    prints with correct line breaks.
+//  - RAW MODE (-D PRN_TEXT_MODE=0): stream untouched, for binary ESC/P.
 //
-//  LED da placa:
-//    apagado  -> ocioso
-//    aceso    -> imprimindo / ha dados na fila
-//    piscando -> impressora pausada (off-line, sem papel, erro ou BUSY travado)
+//  On-board LED:
+//    off      -> idle
+//    on       -> printing / data in the queue
+//    blinking -> printer paused (offline, out of paper, error, or BUSY stuck)
 // ============================================================================
 #include <Arduino.h>
 #include "config.h"

@@ -1,14 +1,14 @@
 // ============================================================================
-//  web_print  -  servidor HTTP no proprio ESP32 para enviar texto a impressora.
+//  web_print  -  HTTP server on the ESP32 to send text to the printer.
 //
-//    GET  /         pagina HTML com <textarea> + botao "Imprimir"
-//    POST /print     enfileira o texto recebido (campo "texto" do form OU
-//                    o corpo cru, com Content-Type: text/plain) para impressao
-//    GET  /status    JSON: estado da impressora + ocupacao da fila
+//    GET  /         HTML page with a <textarea> + "Print" button
+//    POST /print     enqueue the text (form field "texto" OR the raw body,
+//                    with Content-Type: text/plain) for printing
+//    GET  /status    JSON: printer state + queue occupancy
 //
-//  Roda no core 1 (dentro do loop(), via webPrintLoop()); nao concorre com o
-//  driver Centronics. Reaproveita o WiFi do btc_relay quando ele esta ligado.
-//  Liga/desliga e configura em include/config.h (WEBPRINT_*).
+//  Runs on core 1 (inside loop(), via webPrintLoop()); does not race the
+//  Centronics driver. Reuses btc_relay's WiFi when it is enabled.
+//  Enable / configure in include/config.h (WEBPRINT_*).
 // ============================================================================
 #pragma once
 

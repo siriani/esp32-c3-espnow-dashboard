@@ -1,83 +1,82 @@
-# Protocolo e uso — ponte serial → paralela
+# Protocol and usage — serial → parallel bridge
 
-## Camada física (lado do PC)
+## Physical layer (PC side)
 
-- **UART0 do ESP32 pela USB** (o mesmo canal usado para gravar o firmware).
-- 8N1, sem controle de fluxo por hardware.
-- Baud: `SERIAL_BAUD` (padrão **115200**). Dá para subir (ex.: 921600) editando
-  o `platformio.ini`, mas a impressora é o gargalo — a LX-810L imprime na casa
-  de algumas centenas de caracteres/s e tem buffer pequeno.
-- **XON/XOFF** (opcional, ligado por padrão): quando a fila interna enche, o
-  ESP32 manda `XOFF` (0x13) para o host; ao esvaziar, manda `XON` (0x11). Serve
-  para não perder bytes ao despejar arquivos grandes.
+- **ESP32 UART0 over USB** (the same channel used to flash the firmware).
+- 8N1, no hardware flow control.
+- Baud: `SERIAL_BAUD` (default **115200**). You can raise it (e.g. 921600) in
+  `platformio.ini`, but the printer is the bottleneck — the LX-810L does a
+  few hundred characters/s with a small buffer.
+- **XON/XOFF** (optional, on by default): when the internal queue fills, the
+  ESP32 sends `XOFF` (0x13) to the host; when it drains, `XON` (0x11). Keeps
+  you from dropping bytes when dumping big files.
 
-## Fluxo de dados
+## Data flow
 
-Tudo que chega na Serial é enviado para a impressora **byte a byte**, com o
-handshake Centronics completo (espera `BUSY` baixo → coloca D0–D7 → pulso em
-`/STROBE`). Antes de cada byte o firmware também checa `SELECT` (on-line),
-`PE` (papel) e `/ERROR`.
+Everything that arrives on Serial is sent to the printer **byte by byte**,
+with the full Centronics handshake (wait for `BUSY` low → drive D0–D7 →
+pulse `/STROBE`). Before each byte the firmware also checks `SELECT`
+(on-line), `PE` (paper) and `/ERROR`.
 
-### MODO TEXTO (padrão, `-D PRN_TEXT_MODE=1`)
+### TEXT MODE (default, `-D PRN_TEXT_MODE=1`)
 
-`CR`, `LF` e `CRLF` são normalizados para **`CRLF`**. É o que você quer para
-imprimir texto digitado num terminal (senão a LX-810L faz "escada" ou
-sobrescreve a linha).
+`CR`, `LF` and `CRLF` are all normalized to **`CRLF`**. This is what you want
+for text typed into a terminal (otherwise the LX-810L staircases or
+overprints the line).
 
-### MODO RAW (`-D PRN_TEXT_MODE=0`)
+### RAW MODE (`-D PRN_TEXT_MODE=0`)
 
-O fluxo passa **intacto**. Use para enviar ESC/P binário, gráficos bit-image,
-código de barras, etc. Recomendado combinar com `-D PRN_NO_BANNER` e enviar
-`ESC @` no início do job.
+The stream passes **through untouched**. Use it for binary ESC/P, bit-image
+graphics, barcodes, etc. Best combined with `-D PRN_NO_BANNER` and an
+`ESC @` at the start of the job.
 
-> Observação: na energização, o **bootloader ROM do ESP32** sempre cospe uma
-> linha (`rst:0x1...`) na UART0 a 115200. Isso é inevitável nessa ponte por
-> UART0. Em MODO RAW, comece o job com `ESC @` para a impressora ignorar
-> qualquer resquício.
+> Note: at power-up the **ESP32 ROM bootloader** always prints one line
+> (`rst:0x1...`) on UART0 at 115200. That's unavoidable on a UART0 bridge.
+> In RAW mode, start the job with `ESC @` so the printer ignores any leftover.
 
 ---
 
-## Como enviar (macOS / Linux)
+## How to send (macOS / Linux)
 
-Descubra a porta:
+Find the port:
 
 ```bash
 pio device list
-# macOS:  /dev/cu.usbserial-XXXX  ou  /dev/cu.wchusbserialXXXX  ou  /dev/cu.SLAB_USBtoUART
-# Linux:  /dev/ttyUSB0  ou  /dev/ttyACM0
+# macOS:  /dev/cu.usbserial-XXXX  or  /dev/cu.wchusbserialXXXX  or  /dev/cu.SLAB_USBtoUART
+# Linux:  /dev/ttyUSB0  or  /dev/ttyACM0
 ```
 
-### 1) Monitor serial (digitar e imprimir)
+### 1) Serial monitor (type and print)
 
 ```bash
 pio device monitor
-# aguarde a linha "PRONTO." e digite; cada Enter imprime a linha
+# wait for the "PRONTO." line, then type; each Enter prints the line
 ```
 
-### 2) Uma linha rápida
+### 2) A quick one-liner
 
 ```bash
 # macOS
-printf 'Ola mundo\r\n\f' > /dev/cu.usbserial-XXXX
+printf 'Hello world\r\n\f' > /dev/cu.usbserial-XXXX
 # Linux
-printf 'Ola mundo\r\n\f' > /dev/ttyUSB0
+printf 'Hello world\r\n\f' > /dev/ttyUSB0
 ```
 
-`\f` (0x0C, form feed) ejeta/avança a página.
+`\f` (0x0C, form feed) ejects / advances the page.
 
-Se o SO "bagunçar" a porta, fixe os parâmetros antes:
+If the OS mangles the port, pin the parameters first:
 
 ```bash
 # macOS
 stty -f /dev/cu.usbserial-XXXX 115200 raw -echo
-# Linux (note o -F)
+# Linux (note -F)
 stty -F /dev/ttyUSB0 115200 raw -echo ixoff
 ```
 
-### 3) Um arquivo inteiro
+### 3) A whole file
 
 ```bash
-cat relatorio.txt > /dev/cu.usbserial-XXXX
+cat report.txt > /dev/cu.usbserial-XXXX
 ```
 
 ### 4) Python (pyserial)
@@ -85,97 +84,113 @@ cat relatorio.txt > /dev/cu.usbserial-XXXX
 ```python
 import serial, time
 p = serial.Serial("/dev/cu.usbserial-XXXX", 115200)
-time.sleep(2)                      # espera o ESP32 reiniciar
+time.sleep(2)                      # wait for the ESP32 to reboot
 p.write("ESP32 + LX-810L\r\n".encode("cp850"))
 p.write(b"\x0C")                   # form feed
 p.close()
 ```
 
-### 5) Pela rede (HTTP)  —  `WEBPRINT_ENABLE` (padrão)
+### 5) Over the network (HTTP) — `WEBPRINT_ENABLE` (default)
 
-O ESP32 sobe em WiFi STA (credenciais `WEBPRINT_WIFI_SSID` / `_PASS` em
-`include/config.h`, por padrão as do relay) e serve um HTTP na porta 80. O IP
-aparece no monitor serial: `[web] pronto -> http://192.168.x.y/`. Também dá
-para usar `http://impressora.local/` (mDNS, nome em `WEBPRINT_HOSTNAME`).
+The ESP32 joins WiFi as a station (`WEBPRINT_WIFI_SSID` / `_PASS` in
+`include/config.h`, the relay's by default) and serves HTTP on port 80. The
+IP shows on the serial monitor: `[web] ready -> http://192.168.x.y/`. You
+can also use `http://dotmatrix.local/` (mDNS, name in `WEBPRINT_HOSTNAME`).
 
-| Rota | Método | O que faz |
-|------|--------|-----------|
-| `/` | GET | página HTML: `<textarea>` + botão **Imprimir** + selo de estado |
-| `/print` | POST | enfileira o texto: campo `texto` do formulário **ou** o corpo cru com `Content-Type: text/plain` |
+| Route | Method | What it does |
+|-------|--------|--------------|
+| `/` | GET | HTML page: `<textarea>` + **Print** button + status badge |
+| `/print` | POST | enqueue text: form field `texto` **or** the raw body with `Content-Type: text/plain` |
 | `/status` | GET | JSON: `pronta`, `estado`, `fila_livre`, `fila_total`, `fila_vazia`, `ip` |
 
 ```bash
-# corpo cru (precisa do Content-Type: text/plain)
-curl -sS --data-binary $'Relatorio\r\n\f' -H 'Content-Type: text/plain' \
-     http://impressora.local/print
-# um arquivo inteiro
-curl -sS --data-binary @relatorio.txt -H 'Content-Type: text/plain' \
-     http://impressora.local/print
-# via campo de formulário
-curl -sS --data-urlencode 'texto=Ola mundo' http://impressora.local/print
-# estado
-curl -sS http://impressora.local/status
+# raw body (needs Content-Type: text/plain)
+curl -sS --data-binary $'Report\r\n\f' -H 'Content-Type: text/plain' \
+     http://dotmatrix.local/print
+# a whole file
+curl -sS --data-binary @report.txt -H 'Content-Type: text/plain' \
+     http://dotmatrix.local/print
+# via the form field
+curl -sS --data-urlencode 'texto=Hello world' http://dotmatrix.local/print
+# status
+curl -sS http://dotmatrix.local/status
 ```
 
-Sem o header `Content-Type: text/plain`, o `curl --data*` envia como
-`application/x-www-form-urlencoded` — aí é preciso usar o campo `texto`
-(`--data-urlencode 'texto=...'`). O texto recebido cai na **mesma fila** da
-ponte serial e passa pelo MODO TEXTO (CR/LF → CRLF). Limites: `WEBPRINT_MAX_BODY`
-(16 KB) por requisição; `WEBPRINT_FEED_TIMEOUT_MS` (20 s) para a fila escoar.
-Token opcional: `WEBPRINT_TOKEN` != `""` exige `?token=...` ou header
-`X-Auth-Token` em `/print` e `/status`. Desligar tudo: `-D WEBPRINT_ENABLE=0`.
+Without the `Content-Type: text/plain` header, `curl --data*` sends
+`application/x-www-form-urlencoded`, so you must use the `texto` field
+(`--data-urlencode 'texto=...'`). Received text goes into the **same queue**
+as the serial bridge and passes through TEXT MODE (CR/LF → CRLF). Limits:
+`WEBPRINT_MAX_BODY` (16 KB) per request; `WEBPRINT_FEED_TIMEOUT_MS` (20 s)
+for the queue to drain. Optional token: `WEBPRINT_TOKEN` != `""` requires
+`?token=...` or the `X-Auth-Token` header on `/print` and `/status`. Turn it
+all off with `-D WEBPRINT_ENABLE=0`.
+
+### 6) As a network printer (Cmd+P) — `RAWPRINT_ENABLE` (default)
+
+Raw TCP on port **9100** (JetDirect), advertised over mDNS as
+`EPSON LX-810L`. Add it by IP: *HP Jetdirect – Socket*, address
+`dotmatrix.local`, and pick a driver:
+
+- **Generic Text Only** — plain text, no formatting. Reliable.
+- **9-pin ESC/P** (CUPS "Epson 9-Pin Series", `drv:///sample.drv/epson9.ppd`)
+  — text + bitmap graphics as ESC/P, executed by the LX-810L. Requires
+  `-D RAWPRINT_RAW=1` (pure passthrough).
+
+It is **not AirPrint** — an ESP32 can't render PDF / PWG-raster.
 
 ---
 
-## ESC/P — referência rápida (LX-810L, 9 agulhas)
+## ESC/P — quick reference (LX-810L, 9-pin)
 
-| Bytes            | Efeito |
+| Bytes            | Effect |
 |------------------|--------|
-| `1B 40` (`ESC @`)| reset do interpretador |
-| `0C` (`FF`)      | avança página |
-| `0A` (`LF`)      | avança 1 linha |
-| `0D` (`CR`)      | retorna o carro |
-| `1B 45` / `1B 46`| negrito on / off |
-| `1B 34` / `1B 35`| itálico on / off |
-| `1B 2D 01` / `1B 2D 00` | sublinhado on / off |
-| `1B 78 01` / `1B 78 00` | qualidade NLQ / rascunho |
-| `1B 30` / `1B 32`| entrelinha 1/8" / 1/6" |
-| `1B 43 n`        | comprimento de página = n linhas |
-| `1B 43 00 n`     | comprimento de página = n polegadas |
-| `0F` (`SI`) / `12` (`DC2`) | condensado on / off |
-| `0E` (`SO`) / `14` (`DC4`) | expandido (dupla largura) só nesta linha |
-| `1B 52 n`        | conjunto nacional de caracteres |
-| `1B 74 n`        | seleciona a tabela de caracteres |
-| `1B 36`          | habilita 80h–9Fh como imprimíveis |
+| `1B 40` (`ESC @`)| reset the interpreter |
+| `0C` (`FF`)      | form feed |
+| `0A` (`LF`)      | line feed |
+| `0D` (`CR`)      | carriage return |
+| `1B 45` / `1B 46`| bold on / off |
+| `1B 34` / `1B 35`| italic on / off |
+| `1B 2D 01` / `1B 2D 00` | underline on / off |
+| `1B 78 01` / `1B 78 00` | NLQ / draft quality |
+| `1B 30` / `1B 32`| line spacing 1/8" / 1/6" |
+| `1B 43 n`        | page length = n lines |
+| `1B 43 00 n`     | page length = n inches |
+| `0F` (`SI`) / `12` (`DC2`) | condensed on / off |
+| `0E` (`SO`) / `14` (`DC4`) | expanded (double width) for this line only |
+| `1B 52 n`        | national character set |
+| `1B 74 n`        | select character table |
+| `1B 36`          | make 80h–9Fh printable |
 
-### Acentuação / português
+### Accents / non-ASCII
 
-A LX-810L usa **tabelas de 1 byte** (PC437, **PC850**, **PC860 Portugal**, …).
-Um terminal moderno manda **UTF-8** (multibyte) → o acento sai errado.
+The LX-810L uses **single-byte tables** (PC437, **PC850**, **PC860
+Portugal**, …). A modern terminal sends **UTF-8** (multibyte) → accents come
+out wrong.
 
-Soluções:
-1. Configure a tabela na impressora (chaves DIP ou `ESC t n` / `ESC R n`) e envie
-   o texto já em **CP850** ou **CP860** (como no exemplo Python acima).
-2. Conversão automática UTF-8 → CP850 dentro do firmware está no **roadmap**
-   (`README.md`).
+Fixes:
+1. Set the table on the printer (DIP switches or `ESC t n` / `ESC R n`) and
+   send text already in **CP850** or **CP860** (like the Python example
+   above).
+2. Automatic UTF-8 → CP850 conversion inside the firmware is on the
+   **roadmap** (`README.md`).
 
 ---
 
-## Solução de problemas
+## Troubleshooting
 
-| Sintoma | Causa provável | O que fazer |
-|---------|----------------|-------------|
-| Nada imprime, **LED piscando** | off-line / sem papel / erro; `SELECT` baixo | ligar a impressora, colocar papel, apertar *On Line*; conferir divisores e **GND comum** |
-| Nada imprime, **sem erro** | `/SELECT-IN` (DB25-17) não está no GND; ou chave de auto-select | aterrar o DB25-17; ou ajustar a DIP |
-| Sai em "**escada**" (sem voltar o carro) | MODO RAW e o host manda só `\n` | usar MODO TEXTO, ou mandar `\r\n` |
-| **Espaçamento duplo** | `/AUTOFEED` ativo + já mandamos CRLF | tirar DB25-14 do GND / ligar em **+5V** |
-| **Caracteres trocados / lixo** | nível ou timing dos dados; TXS0108E instável | conferir `VCCB=5V` e GND; **trocar por 74HCT541/245**; baixar o baud |
-| Só imprime **depois de muito texto** | buffer da impressora (normal) | mandar `FF` ou `\r\n` no fim do job |
-| **Perde caracteres** em arquivo grande | falta controle de fluxo no host | manter `PRN_XONXOFF=1` **e** `stty ... ixoff`, ou reduzir o baud |
-| ESP32 **reinicia** ao abrir o monitor / gravar | normal (pulso DTR/RTS do USB-serial) | aguardar o banner `PRONTO.` |
-| Acentos errados | UTF-8 vs. tabela de 1 byte | ver seção "Acentuação" acima |
-| `impressora.local` **não resolve** | mDNS bloqueado na rede, ou SO sem Bonjour/avahi | usar o IP direto (monitor serial); no Linux, instalar `avahi-daemon` |
-| `POST /print` → **503** | impressora off-line / sem papel / erro | mesmo checklist do "LED piscando" |
-| `POST /print` → **504** | a fila não escoou (impressora lenta ou presa) | conferir a impressora; reenviar; subir `WEBPRINT_FEED_TIMEOUT_MS` |
-| Página abre mas **"estado: —"** | `/status` barrado por token, ou JS desligado | conferir `WEBPRINT_TOKEN`; imprimir pelo formulário funciona mesmo sem JS |
-| Web não conecta / sem IP no log | SSID/senha errados em `WEBPRINT_WIFI_*` | corrigir em `include/config.h`; o log mostra `WiFi sem associacao` |
+| Symptom | Likely cause | What to do |
+|---------|--------------|------------|
+| Nothing prints, **LED blinking** | offline / out of paper / error; `SELECT` low | power the printer, load paper, press *On Line*; check the dividers and **common GND** |
+| Nothing prints, **no error** | `/SELECT-IN` (DB25-17) not at GND; or an auto-select switch | ground DB25-17; or set the DIP |
+| Output "**staircases**" (no CR) | RAW mode and the host only sends `\n` | use TEXT mode, or send `\r\n` |
+| **Double spacing** | `/AUTOFEED` active + we already send CRLF | move DB25-14 off GND / tie it to **+5V** |
+| **Garbled characters** | data level or timing; TXS0108E unstable | check `VCCB=5V` and GND; **swap for 74HCT541/245**; lower the baud |
+| Only prints **after a lot of text** | printer buffer (normal) | send `FF` or `\r\n` at the end of the job |
+| **Drops characters** on a big file | no host flow control | keep `PRN_XONXOFF=1` **and** `stty ... ixoff`, or lower the baud |
+| ESP32 **reboots** when opening the monitor / flashing | normal (USB-serial DTR/RTS pulse) | wait for the `PRONTO.` banner |
+| Wrong accents | UTF-8 vs single-byte table | see "Accents" above |
+| `dotmatrix.local` **doesn't resolve** | mDNS blocked, or OS without Bonjour/avahi | use the IP directly (serial monitor); on Linux install `avahi-daemon` |
+| `POST /print` → **503** | printer offline / no paper / error | same checklist as "LED blinking" |
+| `POST /print` → **504** | the queue didn't drain (slow or stuck printer) | check the printer; resend; raise `WEBPRINT_FEED_TIMEOUT_MS` |
+| Page opens but **"estado: —"** | `/status` blocked by a token, or JS disabled | check `WEBPRINT_TOKEN`; printing via the form works without JS |
+| Web won't connect / no IP in the log | wrong SSID/password in `WEBPRINT_WIFI_*` | fix it in `include/config.h`; the log shows `WiFi sem associacao` |

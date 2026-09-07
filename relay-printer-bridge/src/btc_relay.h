@@ -1,11 +1,11 @@
 // ============================================================================
-//  btc_relay  -  tarefa opcional que roda no core 0, isolada da ponte da
-//  impressora (que fica no core 1). Conecta no WiFi, busca o preco do BTC
-//  na CoinGecko e transmite por ESP-NOW para o display ESP32-C3 (que nao
-//  consegue associar WiFi por conta da antena).
+//  btc_relay  -  optional core-0 task, isolated from the printer bridge on
+//  core 1. Joins WiFi, fetches prices/weather, runs MQTT + NTP, and
+//  broadcasts everything over ESP-NOW to the ESP32-C3 display (whose own
+//  WiFi can't associate with a router -- see ../docs/esp32-c3-wifi-problem.md).
 //
-//  Ativar/desativar e configurar em include/config.h (BTC_RELAY_*).
-//  Nao toca em nada do CentronicsPrinter; so chamar btcRelayBegin() no setup.
+//  Enable / configure in include/config.h (BTC_RELAY_*).
+//  Touches nothing in CentronicsPrinter; just call btcRelayBegin() in setup().
 // ============================================================================
 #pragma once
 

@@ -1,12 +1,13 @@
 // ============================================================================
-//  btc_relay.cpp  -  ver btc_relay.h
+//  btc_relay.cpp  -  see btc_relay.h
 //
-//  Task no core 0 (isolada da ponte da impressora, que fica no core 1):
+//  A core-0 task (isolated from the printer bridge on core 1):
 //    - WiFi STA
-//    - CoinGecko  : BTC + ETH + USDT (USD e BRL, variacao 24h)  -> ENOW_PRICES
-//    - Open-Meteo : clima de London (atual + 24h + min/max)  -> ENOW_WEATHER
-//    - MQTT       : assina topicos e encaminha as mensagens      -> ENOW_MQTT
-//  Tudo por ESP-NOW broadcast pro display ESP32-C3 (Esp32C3_st7735).
+//    - CoinGecko  : BTC + ETH + USDT (USD and BRL, 24h change)  -> ENOW_PRICES
+//    - Open-Meteo : weather (current + 24h + min/max)           -> ENOW_WEATHER
+//    - MQTT       : subscribe topics and forward messages       -> ENOW_MQTT
+//    - NTP        : UTC epoch, stamped into every price packet
+//  All of it broadcast over ESP-NOW to the ESP32-C3 display.
 // ============================================================================
 #include "config.h"
 

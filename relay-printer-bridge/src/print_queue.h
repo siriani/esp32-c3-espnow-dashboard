@@ -1,9 +1,10 @@
 // ============================================================================
-//  print_queue.h  -  ponte entre os PRODUTORES de bytes (Serial USB e servidor
-//  web) e a fila circular que o loop() escoa para a impressora.
+//  print_queue.h  -  the interface between the byte PRODUCERS (USB serial,
+//  web server, port 9100) and the ring buffer that loop() drains into the
+//  printer.
 //
-//  Implementado em src/main.cpp. Tudo roda no core 1 (loop() + handlers HTTP),
-//  entao nao ha concorrencia com o driver Centronics.
+//  Implemented in src/main.cpp. Everything runs on core 1 (loop() + HTTP
+//  handlers), so there is no contention with the Centronics driver.
 // ============================================================================
 #pragma once
 #include <stddef.h>
