@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="260.0mm" height="180.0mm" viewBox="0 0 260.0 180.0">
+<rect x="0" y="0" width="260.0" height="180.0" fill="white"/>
+<rect x="4.0" y="4.0" width="252.0" height="172.0" rx="0" fill="none" stroke="#111827" stroke-width="0.6"/>
+<text x="130.0" y="14.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="5" fill="#111827" text-anchor="middle" font-weight="bold" dominant-baseline="middle">UM DIVISOR DE STATUS  -  como ligar  (exemplo: BUSY)</text>
+<text x="55.0" y="24.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="3.6" fill="#6b7280" text-anchor="middle" font-weight="bold" dominant-baseline="middle">ESQUEMA</text>
+<line x1="55.0" y1="34.0" x2="55.0" y2="38.0" stroke="#111827" stroke-width="0.4"/>
+<text x="55.0" y="29.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="3.0" fill="#111827" text-anchor="middle" font-weight="normal" dominant-baseline="middle">do DB25 pino 11 (BUSY)</text>
+<text x="89.0" y="33.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.7" fill="#6b7280" text-anchor="start" font-weight="normal" dominant-baseline="middle">5 V quando alto</text>
+<circle cx="55.0" cy="34.0" r="1.1" fill="#111827"/>
+<line x1="35.0" y1="34.0" x2="55.0" y2="34.0" stroke="#111827" stroke-width="0.4"/>
+<text x="33.0" y="34.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="3" fill="#6b7280" text-anchor="end" font-weight="normal" dominant-baseline="middle">&gt;</text>
+<rect x="52.6" y="39.5" width="4.8" height="13.0" rx="0" fill="white" stroke="#c2410c" stroke-width="0.45"/>
+<text x="63.0" y="46.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="3.0" fill="#c2410c" text-anchor="start" font-weight="normal" dominant-baseline="middle">10k</text>
+<line x1="55.0" y1="38.0" x2="55.0" y2="39.5" stroke="#111827" stroke-width="0.4"/>
+<rect x="52.6" y="47.5" width="4.8" height="13.0" rx="0" fill="white" stroke="#c2410c" stroke-width="0.45"/>
+<text x="63.0" y="54.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="3.0" fill="#c2410c" text-anchor="start" font-weight="normal" dominant-baseline="middle">2k</text>
+<line x1="55.0" y1="52.5" x2="55.0" y2="47.5" stroke="#111827" stroke-width="0.4"/>
+<path d="M 69 36 L 73 36 L 73 61 L 69 61" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<text x="79.0" y="47.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="3.0" fill="#6b7280" text-anchor="start" font-weight="normal" dominant-baseline="middle">R CIMA = 12k</text>
+<line x1="55.0" y1="60.5" x2="55.0" y2="70.0" stroke="#111827" stroke-width="0.4"/>
+<circle cx="55.0" cy="70.0" r="1.4" fill="#1d4ed8"/>
+<line x1="55.0" y1="70.0" x2="95.0" y2="70.0" stroke="#1d4ed8" stroke-width="0.4"/>
+<text x="97.0" y="70.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="3.1" fill="#1d4ed8" text-anchor="start" font-weight="normal" dominant-baseline="middle">ao ESP32  GPIO34</text>
+<text x="97.0" y="74.2" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.7" fill="#1d4ed8" text-anchor="start" font-weight="normal" dominant-baseline="middle">~3,1 V (alto)  /  0 V (baixo)</text>
+<line x1="55.0" y1="70.0" x2="55.0" y2="83.5" stroke="#111827" stroke-width="0.4"/>
+<rect x="52.6" y="83.5" width="4.8" height="13.0" rx="0" fill="white" stroke="#c2410c" stroke-width="0.45"/>
+<text x="63.0" y="90.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="3.0" fill="#c2410c" text-anchor="start" font-weight="normal" dominant-baseline="middle">10k</text>
+<rect x="52.6" y="99.5" width="4.8" height="13.0" rx="0" fill="white" stroke="#c2410c" stroke-width="0.45"/>
+<text x="63.0" y="106.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="3.0" fill="#c2410c" text-anchor="start" font-weight="normal" dominant-baseline="middle">10k</text>
+<line x1="55.0" y1="96.5" x2="55.0" y2="99.5" stroke="#111827" stroke-width="0.4"/>
+<path d="M 69 84 L 73 84 L 73 112 L 69 112" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<text x="79.0" y="98.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="3.0" fill="#6b7280" text-anchor="start" font-weight="normal" dominant-baseline="middle">R BAIXO = 20k</text>
+<line x1="55.0" y1="112.5" x2="55.0" y2="118.0" stroke="#111827" stroke-width="0.4"/>
+<line x1="55.0" y1="118.0" x2="55.0" y2="121.0" stroke="#111827" stroke-width="0.4"/>
+<line x1="51.8" y1="121.0" x2="58.2" y2="121.0" stroke="#111827" stroke-width="0.4"/>
+<line x1="53.0" y1="122.4" x2="57.0" y2="122.4" stroke="#111827" stroke-width="0.4"/>
+<line x1="54.1" y1="123.6" x2="55.9" y2="123.6" stroke="#111827" stroke-width="0.4"/>
+<text x="55.0" y="130.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="3.0" fill="#111827" text-anchor="middle" font-weight="normal" dominant-baseline="middle">para o GND comum (0 V)</text>
+<text x="55.0" y="134.5" font-family="DejaVu Sans, Arial, sans-serif" font-size="3.0" fill="#b91c1c" text-anchor="middle" font-weight="bold" dominant-baseline="middle">TEM que estar no GND!</text>
+<text x="171.2" y="24.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="3.6" fill="#6b7280" text-anchor="middle" font-weight="bold" dominant-baseline="middle">NA PROTOBOARD</text>
+<rect x="145.0" y="24.0" width="46.5" height="57.0" rx="0" fill="#fafafa" stroke="#6b7280" stroke-width="0.5"/>
+<line x1="140.0" y1="30.0" x2="140.0" y2="72.5" stroke="#1d4ed8" stroke-width="0.8"/>
+<text x="137.0" y="51.2" font-family="DejaVu Sans, Arial, sans-serif" font-size="6" fill="#1d4ed8" text-anchor="end" font-weight="normal" dominant-baseline="middle">-</text>
+<circle cx="150.0" cy="30.0" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<circle cx="158.5" cy="30.0" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<circle cx="167.0" cy="30.0" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<circle cx="175.5" cy="30.0" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<circle cx="184.0" cy="30.0" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<circle cx="150.0" cy="38.5" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<circle cx="158.5" cy="38.5" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<circle cx="167.0" cy="38.5" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<circle cx="175.5" cy="38.5" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<circle cx="184.0" cy="38.5" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<circle cx="150.0" cy="47.0" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<circle cx="158.5" cy="47.0" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<circle cx="167.0" cy="47.0" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<circle cx="175.5" cy="47.0" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<circle cx="184.0" cy="47.0" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<circle cx="150.0" cy="55.5" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<circle cx="158.5" cy="55.5" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<circle cx="167.0" cy="55.5" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<circle cx="175.5" cy="55.5" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<circle cx="184.0" cy="55.5" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<circle cx="150.0" cy="64.0" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<circle cx="158.5" cy="64.0" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<circle cx="167.0" cy="64.0" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<circle cx="175.5" cy="64.0" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<circle cx="184.0" cy="64.0" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<circle cx="150.0" cy="72.5" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<circle cx="158.5" cy="72.5" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<circle cx="167.0" cy="72.5" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<circle cx="175.5" cy="72.5" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<circle cx="184.0" cy="72.5" r="1.3" fill="none" stroke="#6b7280" stroke-width="0.3"/>
+<line x1="143.0" y1="30.0" x2="167.0" y2="30.0" stroke="#111827" stroke-width="0.7"/>
+<text x="141.0" y="30.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.7" fill="#111827" text-anchor="end" font-weight="normal" dominant-baseline="middle">DB25 p11</text>
+<rect x="164.6" y="31.0" width="4.8" height="6.5" rx="0" fill="white" stroke="#c2410c" stroke-width="0.45"/>
+<text x="175.0" y="34.2" font-family="DejaVu Sans, Arial, sans-serif" font-size="3.0" fill="#c2410c" text-anchor="start" font-weight="normal" dominant-baseline="middle">10k</text>
+<rect x="164.6" y="39.5" width="4.8" height="6.5" rx="0" fill="white" stroke="#c2410c" stroke-width="0.45"/>
+<text x="175.0" y="42.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="3.0" fill="#c2410c" text-anchor="start" font-weight="normal" dominant-baseline="middle">2k</text>
+<circle cx="167.0" cy="47.0" r="1.4" fill="#1d4ed8"/>
+<line x1="167.0" y1="47.0" x2="189.0" y2="47.0" stroke="#1d4ed8" stroke-width="0.7"/>
+<text x="191.0" y="47.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.7" fill="#1d4ed8" text-anchor="start" font-weight="normal" dominant-baseline="middle">GPIO34</text>
+<rect x="164.6" y="48.0" width="4.8" height="6.5" rx="0" fill="white" stroke="#c2410c" stroke-width="0.45"/>
+<text x="175.0" y="51.2" font-family="DejaVu Sans, Arial, sans-serif" font-size="3.0" fill="#c2410c" text-anchor="start" font-weight="normal" dominant-baseline="middle">10k</text>
+<rect x="164.6" y="56.5" width="4.8" height="6.5" rx="0" fill="white" stroke="#c2410c" stroke-width="0.45"/>
+<text x="175.0" y="59.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="3.0" fill="#c2410c" text-anchor="start" font-weight="normal" dominant-baseline="middle">10k</text>
+<line x1="167.0" y1="64.0" x2="140.0" y2="64.0" stroke="#1d4ed8" stroke-width="0.7"/>
+<circle cx="140.0" cy="64.0" r="1.0" fill="#1d4ed8"/>
+<text x="170.0" y="67.5" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.6" fill="#1d4ed8" text-anchor="start" font-weight="normal" dominant-baseline="middle">base -&gt; GND</text>
+<text x="171.2" y="89.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.7" fill="#6b7280" text-anchor="middle" font-weight="normal" dominant-baseline="middle">cada resistor liga UMA linha na SEGUINTE</text>
+<text x="171.2" y="93.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.7" fill="#6b7280" text-anchor="middle" font-weight="normal" dominant-baseline="middle">(as 2 pernas em linhas diferentes)</text>
+<rect x="10.0" y="146.0" width="240.0" height="26.0" rx="0" fill="#fef2f2" stroke="#b91c1c" stroke-width="0.5"/>
+<text x="15.0" y="152.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="3.2" fill="#b91c1c" text-anchor="start" font-weight="bold" dominant-baseline="middle">Está dando 5 V no ponto do meio?  Causa quase certa:</text>
+<text x="15.0" y="158.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.9" fill="#111827" text-anchor="start" font-weight="normal" dominant-baseline="middle">1) a BASE do divisor não está no GND (fio fora do trilho, ou trilho - sem ligação ao GND do ESP32).</text>
+<text x="15.0" y="163.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.9" fill="#111827" text-anchor="start" font-weight="normal" dominant-baseline="middle">2) um resistor com as 2 pernas na MESMA linha da protoboard -&gt; ele não faz nada (está curto).</text>
+<text x="15.0" y="168.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.9" fill="#111827" text-anchor="start" font-weight="normal" dominant-baseline="middle">3) a linha do meio encostando na linha de cima (5 V passa direto).  Teste: meça base-&gt;GND com o apito.</text>
+</svg>

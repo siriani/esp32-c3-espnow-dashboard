@@ -1,0 +1,56 @@
+digraph wiring {
+  rankdir=LR;
+  graph [fontname="Helvetica", nodesep=0.45, ranksep="1.4 equally", splines=true, concentrate=false, bgcolor="white"];
+  node  [fontname="Helvetica", fontsize=10];
+  edge  [fontname="Helvetica", fontsize=9];
+  subgraph cluster_pwr {
+    label="Alimentacao (do proprio ESP32 / USB)"; style="rounded,dashed"; color="#15803d";
+    v5   [label="+5V\n(pino 5V/VIN)", shape=box, style="rounded,filled", fillcolor="#dcfce7", color="#15803d"];
+    v3   [label="+3V3", shape=box, style="rounded,filled", fillcolor="#dcfce7", color="#15803d"];
+    gnd  [label="GND comum", shape=box, style="rounded,filled", fillcolor="#f3f4f6", color="#6b7280"];
+  }
+  esp32 [shape=plaintext label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4"><TR><TD BGCOLOR="#e5e7eb"><B>ESP32-WROOM-32</B></TD></TR><TR><TD PORT="g13" ALIGN="LEFT">GPIO13</TD></TR><TR><TD PORT="g14" ALIGN="LEFT">GPIO14</TD></TR><TR><TD PORT="g27" ALIGN="LEFT">GPIO27</TD></TR><TR><TD PORT="g26" ALIGN="LEFT">GPIO26</TD></TR><TR><TD PORT="g25" ALIGN="LEFT">GPIO25</TD></TR><TR><TD PORT="g23" ALIGN="LEFT">GPIO23</TD></TR><TR><TD PORT="g22" ALIGN="LEFT">GPIO22</TD></TR><TR><TD PORT="g21" ALIGN="LEFT">GPIO21</TD></TR><TR><TD PORT="g19" ALIGN="LEFT">GPIO19  <FONT COLOR="#1d4ed8">/STROBE</FONT></TD></TR><TR><TD PORT="g18" ALIGN="LEFT">GPIO18  <FONT COLOR="#1d4ed8">/INIT</FONT></TD></TR><TR><TD PORT="g4" ALIGN="LEFT">GPIO4  <FONT COLOR="#1d4ed8">TXS OE</FONT></TD></TR><TR><TD PORT="g34" ALIGN="LEFT">GPIO34  <FONT COLOR="#c2410c">BUSY</FONT></TD></TR><TR><TD PORT="g35" ALIGN="LEFT">GPIO35  <FONT COLOR="#c2410c">PE</FONT></TD></TR><TR><TD PORT="g39" ALIGN="LEFT">GPIO39  <FONT COLOR="#c2410c">/ERROR</FONT></TD></TR><TR><TD PORT="g36" ALIGN="LEFT">GPIO36  <FONT COLOR="#c2410c">SELECT</FONT></TD></TR><TR><TD PORT="v3" ALIGN="LEFT">3V3</TD></TR><TR><TD PORT="gnd" ALIGN="LEFT">GND</TD></TR></TABLE>>];
+  txs [shape=plaintext label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4"><TR><TD BGCOLOR="#e5e7eb" COLSPAN="2"><B>TXS0108E (conversor de nivel)</B></TD></TR><TR><TD BGCOLOR="#f9fafb">lado A (3V3)</TD><TD BGCOLOR="#f9fafb">lado B (5V)</TD></TR><TR><TD PORT="A1" ALIGN="LEFT">A1</TD><TD PORT="B1" ALIGN="RIGHT">B1</TD></TR><TR><TD PORT="A2" ALIGN="LEFT">A2</TD><TD PORT="B2" ALIGN="RIGHT">B2</TD></TR><TR><TD PORT="A3" ALIGN="LEFT">A3</TD><TD PORT="B3" ALIGN="RIGHT">B3</TD></TR><TR><TD PORT="A4" ALIGN="LEFT">A4</TD><TD PORT="B4" ALIGN="RIGHT">B4</TD></TR><TR><TD PORT="A5" ALIGN="LEFT">A5</TD><TD PORT="B5" ALIGN="RIGHT">B5</TD></TR><TR><TD PORT="A6" ALIGN="LEFT">A6</TD><TD PORT="B6" ALIGN="RIGHT">B6</TD></TR><TR><TD PORT="A7" ALIGN="LEFT">A7</TD><TD PORT="B7" ALIGN="RIGHT">B7</TD></TR><TR><TD PORT="A8" ALIGN="LEFT">A8</TD><TD PORT="B8" ALIGN="RIGHT">B8</TD></TR><TR><TD PORT="OE" ALIGN="LEFT">OE</TD><TD ALIGN="RIGHT">VCCB &#8592; +5V</TD></TR><TR><TD PORT="VCCA" ALIGN="LEFT">VCCA &#8592; 3V3</TD><TD PORT="TGND" ALIGN="RIGHT">GND</TD></TR></TABLE>>];
+  div_busy [label="divisor BUSY\n1k8 (topo)\n3k3 (base->GND)\n~3,2 V", shape=box, style="rounded,filled", fillcolor="#fff7ed", color="#c2410c"];
+  div_pe [label="divisor PE\n1k8 (topo)\n3k3 (base->GND)\n~3,2 V", shape=box, style="rounded,filled", fillcolor="#fff7ed", color="#c2410c"];
+  div_error [label="divisor /ERROR\n1k8 (topo)\n3k3 (base->GND)\n~3,2 V", shape=box, style="rounded,filled", fillcolor="#fff7ed", color="#c2410c"];
+  div_select [label="divisor SELECT\n1k8 (topo)\n3k3 (base->GND)\n~3,2 V", shape=box, style="rounded,filled", fillcolor="#fff7ed", color="#c2410c"];
+  db25 [shape=plaintext label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4"><TR><TD BGCOLOR="#e5e7eb"><B>DB25 macho (encaixa o cabo)</B></TD></TR><TR><TD PORT="p1" ALIGN="LEFT">pino  1  /STROBE</TD></TR><TR><TD PORT="p2" ALIGN="LEFT">pino  2  D0</TD></TR><TR><TD PORT="p3" ALIGN="LEFT">pino  3  D1</TD></TR><TR><TD PORT="p4" ALIGN="LEFT">pino  4  D2</TD></TR><TR><TD PORT="p5" ALIGN="LEFT">pino  5  D3</TD></TR><TR><TD PORT="p6" ALIGN="LEFT">pino  6  D4</TD></TR><TR><TD PORT="p7" ALIGN="LEFT">pino  7  D5</TD></TR><TR><TD PORT="p8" ALIGN="LEFT">pino  8  D6</TD></TR><TR><TD PORT="p9" ALIGN="LEFT">pino  9  D7</TD></TR><TR><TD PORT="p11" ALIGN="LEFT">pino 11  BUSY</TD></TR><TR><TD PORT="p12" ALIGN="LEFT">pino 12  PE</TD></TR><TR><TD PORT="p13" ALIGN="LEFT">pino 13  SELECT</TD></TR><TR><TD PORT="p14" ALIGN="LEFT">pino 14  /AUTOFEED -&gt; +5V</TD></TR><TR><TD PORT="p15" ALIGN="LEFT">pino 15  /ERROR</TD></TR><TR><TD PORT="p16" ALIGN="LEFT">pino 16  /INIT</TD></TR><TR><TD PORT="p17" ALIGN="LEFT">pino 17  /SELECT-IN -&gt; GND</TD></TR><TR><TD PORT="pgnd" ALIGN="LEFT">pinos 18-25  GND</TD></TR></TABLE>>];
+  printer [label="EPSON LX-810L\n(Centronics 36)\ncabo DB25<->Centronics", shape=box, style="filled", fillcolor="#eff6ff", color="#1e3a8a"];
+  esp32:g13:e -> txs:A1:w [color="#1f2937", label="D0"];
+  txs:B1:e -> db25:p2:w [color="#1f2937"];
+  esp32:g14:e -> txs:A2:w [color="#1f2937", label="D1"];
+  txs:B2:e -> db25:p3:w [color="#1f2937"];
+  esp32:g27:e -> txs:A3:w [color="#1f2937", label="D2"];
+  txs:B3:e -> db25:p4:w [color="#1f2937"];
+  esp32:g26:e -> txs:A4:w [color="#1f2937", label="D3"];
+  txs:B4:e -> db25:p5:w [color="#1f2937"];
+  esp32:g25:e -> txs:A5:w [color="#1f2937", label="D4"];
+  txs:B5:e -> db25:p6:w [color="#1f2937"];
+  esp32:g23:e -> txs:A6:w [color="#1f2937", label="D5"];
+  txs:B6:e -> db25:p7:w [color="#1f2937"];
+  esp32:g22:e -> txs:A7:w [color="#1f2937", label="D6"];
+  txs:B7:e -> db25:p8:w [color="#1f2937"];
+  esp32:g21:e -> txs:A8:w [color="#1f2937", label="D7"];
+  txs:B8:e -> db25:p9:w [color="#1f2937"];
+  esp32:g4:e -> txs:OE:w [color="#1d4ed8", style=dashed, label="OE (pull-down 10k -&gt; GND)"];
+  esp32:g19:e -> db25:p1:w [color="#1d4ed8", label="/STROBE\ndireto + pull-up 10k -&gt; +5V"];
+  esp32:g18:e -> db25:p16:w [color="#1d4ed8", label="/INIT\ndireto + pull-up 10k -&gt; +5V"];
+  db25:p11:w -> div_busy [color="#c2410c", dir=back, label="BUSY 5V"];
+  div_busy -> esp32:g34:e [color="#c2410c", dir=back, constraint=false];
+  db25:p12:w -> div_pe [color="#c2410c", dir=back, label="PE 5V"];
+  div_pe -> esp32:g35:e [color="#c2410c", dir=back, constraint=false];
+  db25:p15:w -> div_error [color="#c2410c", dir=back, label="/ERROR 5V"];
+  div_error -> esp32:g39:e [color="#c2410c", dir=back, constraint=false];
+  db25:p13:w -> div_select [color="#c2410c", dir=back, label="SELECT 5V"];
+  div_select -> esp32:g36:e [color="#c2410c", dir=back, constraint=false];
+  v5 -> db25:p14:w [color="#15803d", style=dotted, label="/AUTOFEED = +5V"];
+  gnd -> db25:p17:w [color="#6b7280", style=dotted, label="/SELECT-IN = GND"];
+  esp32:v3:e  -> v3   [color="#15803d", dir=none, style=bold];
+  v3  -> txs:VCCA:w  [color="#15803d", label="VCCA"];
+  v5  -> txs:e       [color="#15803d", label="VCCB"];
+  esp32:gnd:e -> gnd  [color="#6b7280", dir=none, style=bold];
+  gnd -> txs:TGND:w   [color="#6b7280"];
+  gnd -> db25:pgnd:w  [color="#6b7280", label="18-25"];
+  db25 -> printer     [color="#1e3a8a", penwidth=2, label="cabo paralelo"];
+}

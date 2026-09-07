@@ -1,0 +1,3 @@
+.pio/
+src/snoopy*.h
+src/sprites/
